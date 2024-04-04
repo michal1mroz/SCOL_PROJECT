@@ -1,6 +1,6 @@
 
 
-class Names {
+object Names {
   sealed trait Hand
 
   case object Left extends Hand
