@@ -1,4 +1,4 @@
-
+import utils.ScolException.ScolFail
 
 object Names {
   sealed trait Hand
@@ -11,6 +11,7 @@ object Names {
   sealed trait AssocHand
 
   case object LeftAssoc extends AssocHand
+  
 
   case object RightAssoc extends AssocHand
 
@@ -115,7 +116,7 @@ object Names {
 
   def infixInfo(fxty: Fixity): (Int, AssocHand) = fxty match {
     case Infix(n, h) => (n, h)
-    case _ => throw new RuntimeException("Not an infix fixity") // FIXME using RuntimeException instead of hol_fail (don't know if it's ok)
+    case _ => throw new ScolFail("Not an infix fixity") // FIXME using RuntimeException instead of hol_fail (don't know if it's ok)
   }
 
 
