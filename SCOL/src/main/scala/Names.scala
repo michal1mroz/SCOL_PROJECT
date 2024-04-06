@@ -116,7 +116,7 @@ object Names {
 
   def infixInfo(fxty: Fixity): (Int, AssocHand) = fxty match {
     case Infix(n, h) => (n, h)
-    case _ => throw new ScolFail("Not an infix fixity") // FIXME using RuntimeException instead of hol_fail (don't know if it's ok)
+    case _ => throw new IllegalArgumentException("Not an infix fixity")
   }
 
 
