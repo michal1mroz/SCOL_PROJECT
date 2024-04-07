@@ -1,7 +1,10 @@
-import Lib._
+package main.scala
 
-  @main
-  def main(): Unit = {
+import Lib.*
+import main.scala.DlTree
+
+object Main {
+  def main(args: Array[String]): Unit = {
     println("Hello world!")
     //  val l = List(1)
     //  println(l.head)
@@ -49,4 +52,16 @@ import Lib._
     println(result3)
     println(result4)
 
+    val empty = DlTree.dltreeEmpty
+    println(empty)
+    println(DlTree.log2(8))
+    val intList: List[(Int, String)] = List((5,"apple"), (2, "banana"), (8,"orange"))
+    val tree: DlTree.Node[Int, String] = DlTree.dltreeMake(intList)
+    println(tree)
+    println(DlTree.dltreeElems(tree))
+    println(DlTree.level(tree))
+
+    val tree2 = DlTree.dltreeInsert((3, "onion"), tree)
+    println(tree2)
   }
+}

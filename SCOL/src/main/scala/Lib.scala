@@ -1,3 +1,4 @@
+package main.scala
 import utils.ScolException.ScolFail
 
 import java.math.BigInteger
