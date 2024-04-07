@@ -1,4 +1,4 @@
-# SCOL_PROJECT
+## SCOL_PROJECT
 
 Implementation of HOL-0 subset in scala. Based on holzero-0.6.3 using scala 3.
 
@@ -14,8 +14,8 @@ hol-0 API.
 For 11.04.2024
 
 - [ ] Port dltree.ml
-- [ ] Port lib.ml
-- [ ] Port names.ml
+- [x] Port lib.ml (haven't properly tested functions, especially I have doubts about union_ and unions_)
+- [ ] Port names.ml (half way done)
 - [ ] Think about equal.ml
 - [ ] Port bool.ml
 - [ ] Port eqcong.ml
