@@ -17,13 +17,14 @@ For 11.04.2024
 - [x] Port lib.ml (haven't properly tested functions, especially I have doubts about union_ and unions_, but most of it should be OK)
 - [ ] Port names.ml (half way done)
 - [x] Port reader.ml  (ported full Reader, but haven't tested it properly. Should be OK)
-- [ ] Port lexer.ml
+- [ ] Port wrap.ml
 - [ ] Port type.ml
 - [ ] Port term.ml
 - [ ] Port utils 1, 2
 
 For 18.04.2024:
 
+- [ ] Port lexer.ml
 - [ ] Port boolalg.ml and boolclass.ml
 - [ ] Port equal.ml
 - [ ] Port bool.ml
