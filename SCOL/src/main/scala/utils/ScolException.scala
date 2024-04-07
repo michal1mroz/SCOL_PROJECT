@@ -7,6 +7,7 @@ object ScolException extends Exception{
 
   // class that stores message and func name
   case class ScolFail(msg: String) extends RuntimeException(s"[SC] FAIL: $msg")
+  case class ReaderFail(msg: String) extends RuntimeException(s"[SC] ReaderFail: $msg")
 
   /* fixme throw an exception probably should just stick to `throw ScolFail(func, msg)`*/
   def scol_fail(msg: String): Nothing = throw ScolFail(msg)
