@@ -4,7 +4,7 @@ This file could be used to write certain ideas and problems in the process of po
 - Ported full Lib (hasn't been tested, but it shouldn't be too bad)
 - Created custom exception ScolFail. It should be used in places where exception could be 'legal', for example IllegalArgumentException sould be used everywhere where there is a risk of accepting a illegal argument and ScolFail is not a replacement for it, but when you call a function to find some element that satisfies provided boolean function (see tryFind in Lib) it should throw ScolFail because for exmple for user it might indicate that a proof went wrong somewhere, but it doesn't pose danger to the system, it should be mostly used to communicate problems to user (maybe I am not entirely sure, but that's my intuition)
 - ported first half of Names (the second half requires implementation of DLTree), I will finish it when DLTree is ready.
-- Keeping naming convention in Scala camel case (e.g. OCaml : do_map, Scala : doMap). Also the `'` character is not allowed in names in Scala so using '_' instead (e.g. OCaml : mem' Scalamem_).
+- Keeping naming convention in Scala camel case (e.g. OCaml : do_map, Scala : doMap). Also the `'` character is not allowed in names in Scala so using '\_' instead (e.g. OCaml : mem' Scala : mem\_).
 
 ## Implementation
 1. Should use Lists instead of Arrays or anything of that sort. Lists are immutable and we need that to ensure correctness of the system.
