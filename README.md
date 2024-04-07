@@ -17,7 +17,7 @@ For 11.04.2024
 - [x] Port lib.ml (haven't properly tested functions, especially I have doubts about union_ and unions_, but most of it should be OK)
 - [ ] Port names.ml (half way done)
 - [x] Port reader.ml  (ported full Reader, but haven't tested it properly. Should be OK)
-- [ ] Port wrap.ml
+- [ ] Port wrap.ml (Some functions that do not require further modules)
 - [ ] Port type.ml
 - [ ] Port term.ml
 - [ ] Port utils 1, 2
