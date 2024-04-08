@@ -13,7 +13,6 @@ hol-0 API.
 
 For 11.04.2024
 
-- [ ] Port dltree.ml
 - [x] Port lib.ml (haven't properly tested functions, especially I have doubts about union_ and unions_, but most of it should be OK)
 - [x] Port names.ml 
 - [x] Port reader.ml  (ported full Reader, but haven't tested it properly. Should be OK)
