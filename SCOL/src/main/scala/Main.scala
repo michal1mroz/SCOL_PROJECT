@@ -1,7 +1,6 @@
 package main.scala
 
 import Lib.*
-import main.scala.DlTree
 
 object Main {
   def main(args: Array[String]): Unit = {

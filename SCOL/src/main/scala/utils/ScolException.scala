@@ -10,21 +10,24 @@ object ScolException extends Exception{
   case class ReaderFail(msg: String) extends RuntimeException(s"[SC] ReaderFail: $msg")
 
   /* fixme throw an exception probably should just stick to `throw ScolFail(func, msg)`*/
-  def scol_fail(msg: String): Nothing = throw ScolFail(msg)
+  def scolFail(msg: String): Nothing = throw ScolFail(msg)
 
   case class ScolError(err: String, msg: String) extends RuntimeException(s"[SC] $err: $msg")
 
   // fixme throw an error again better stick to `throw ScolError(err, msg)`
-  def scol_error(err: String, msg: String): Nothing = throw ScolError(err, msg)
+  def scolError(err: String, msg: String): Nothing = throw ScolError(err, msg)
+
+  def scolWarn(msg : String) : Unit = println("WARNING: " + msg)
+  def scolReport(msg : String) : Unit = println("REPORT: " + msg)
 
 
-  def internal_error(func: String): Nothing = scol_error("INTERNAL ERROR", func)
+  def internalError(func: String): Nothing = scolError("INTERNAL ERROR", func)
 
-  def build_error(msg: String): Nothing = scol_error("BUILD ERROR", msg)
+  def buildError(msg: String): Nothing = scolError("BUILD ERROR", msg)
 
   case object LocalFail extends RuntimeException
 
-  def print_exn(e: Throwable): Unit = e match {
+  def printExn(e: Throwable): Unit = e match {
     case ScolFail(msg) => println(s"\n[SC] FAIL: $msg")
     case ScolError(err, msg) => println(s"\n[SC] $err: $msg")
     case _ => println(e.toString)

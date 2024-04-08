@@ -268,10 +268,10 @@ object Lib {
   }
 
   // Define the inv_assoc function
-  def inv_assoc[A, B](y: B, xys: List[(A, B)]): A = xys match {
+  def invAssoc[A, B](y: B, xys: List[(A, B)]): A = xys match {
     case (x0, y0) :: xys0 =>
       if (y == y0) x0
-      else inv_assoc(y, xys0)
+      else invAssoc(y, xys0)
     case Nil => throw new NoSuchElementException("inv_assoc: No match")
   }
 
