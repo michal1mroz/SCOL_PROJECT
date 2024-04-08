@@ -15,7 +15,7 @@ object Type {
   private val theTyconsts: mutable.HashMap[String, BigInt] = mutable.HashMap.empty
 
   def getTyconstArity(x: String): BigInt =
-    theTyconsts.getOrElse(x, throw new RuntimeException(s"No type constant called $x"))
+    theTyconsts.getOrElse(x, throw ScolFail(s"No type constant called $x"))
 
   def getAllTyconsts: List[(String, BigInt)] = theTyconsts.toList
 
@@ -32,7 +32,7 @@ object Type {
 
   def destVarType(ty: HolType): String = ty match {
     case Tyvar(x) => x
-    case _ => throw new RuntimeException("Not a type variable")
+    case _ => throw ScolFail("Not a type variable")
   }
 
   def isVarType(ty: HolType): Boolean = ty match {
@@ -56,17 +56,17 @@ object Type {
     case _ => false
   }
 
-  //fixme don't know how to define them
-  def typeEq(x: HolType, y: HolType): Boolean = x == y
+  //fixme don't know how to define them maybe Scala compiler will figure it out
+//  def typeEq(x: HolType, y: HolType): Boolean = x == y
 
   //fixme don't know how to define them
-  def typeLt(x: HolType, y: HolType): Boolean = x.toString < y.toString
+//  def typeLt(x: HolType, y: HolType): Boolean = x.toString < y.toString
 
   def mkFunType(ty1: HolType, ty2: HolType): HolType = Tycomp("->", List(ty1, ty2))
 
   def destFunType(ty: HolType): (HolType, HolType) = ty match {
     case Tycomp("->", List(ty1, ty2)) => (ty1, ty2)
-    case _ => throw new RuntimeException("Not a function type")
+    case _ => throw ScolFail("Not a function type")
   }
 
   def isFunType(ty: HolType): Boolean = ty match {

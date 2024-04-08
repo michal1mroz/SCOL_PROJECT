@@ -18,7 +18,7 @@ For 11.04.2024
 - [x] Port names.ml 
 - [x] Port reader.ml  (ported full Reader, but haven't tested it properly. Should be OK)
 - [ ] Port wrap.ml (Some functions that do not require further modules)
-- [ ] Port type.ml
+- [x] Port type.ml
 - [ ] Port term.ml
 - [ ] Port utils 1, 2
 
