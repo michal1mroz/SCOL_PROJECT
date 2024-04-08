@@ -61,7 +61,12 @@ object Main {
     println(DlTree.dltreeElems(tree))
     println(DlTree.level(tree))
 
+    DlTree.dltreePrint(tree)
     val tree2 = DlTree.dltreeInsert((3, "onion"), tree)
     println(tree2)
+    DlTree.dltreePrint(tree2)
+    val tree3 = DlTree.dltreeInsert((4, "cat"), tree2)
+    println(tree3)
+    DlTree.dltreePrint(tree3)
   }
 }

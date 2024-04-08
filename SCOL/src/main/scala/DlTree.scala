@@ -22,6 +22,31 @@ object DlTree {
   def dltreeEmpty[A, B]: DlTree[Nothing, Nothing] = Leaf()
 
   /**
+   *
+   * @param tr dltree to be printed out
+   * @tparam A
+   * @tparam B
+   * Primitive print out of a given tree, created for console debugging
+   */
+
+  def dltreePrint[A, B](tr: DlTree[A, B]): Unit = {
+    @tailrec
+    def printLevel(level: List[DlTree[A, B]]): Unit = {
+      if (level.nonEmpty){
+        val (nextLevel, values) = level.foldLeft((List.empty[DlTree[A, B]], List.empty[(A,B)])){
+          case ((accLevel, accValues), Branch(_, (key, value), left, right)) =>
+            (accLevel ::: List(left, right), accValues::: List((key, value)))
+          case ((accLevel, accValues), _) => (accLevel, accValues)
+        }
+        val levelValues = values.reverse.map {case (key, value) => s"($key, $value)"}.mkString(", ")
+        println(levelValues)
+        printLevel(nextLevel.reverse)
+      }
+    }
+    printLevel(List(tr))
+  }
+
+  /**
    * @param n - type Double, number we want to calculate log of
    * @return value of logarithm base 2 of number n
    */
@@ -138,7 +163,7 @@ object DlTree {
   }
 
   def dltreeInsert[A, B](xy0: (A, B), tr: DlTree[A, B])(implicit ord: Ordering[A]): DlTree[A, B]= {
-    val rebalance:DlTree[A, B] => DlTree[A, B] = (split[A, B]).andThen(skew[A, B])
+    val rebalance:DlTree[A, B] => DlTree[A, B] = (split[A, B]) compose (skew[A, B])
     tr match {
       case Branch(h, xy, tr1, tr2) =>
         val cmp = ord.compare(xy0._1, xy._1)
