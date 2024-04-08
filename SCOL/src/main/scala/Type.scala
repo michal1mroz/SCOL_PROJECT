@@ -56,8 +56,10 @@ object Type {
     case _ => false
   }
 
+  //fixme don't know how to define them
   def typeEq(x: HolType, y: HolType): Boolean = x == y
 
+  //fixme don't know how to define them
   def typeLt(x: HolType, y: HolType): Boolean = x.toString < y.toString
 
   def mkFunType(ty1: HolType, ty2: HolType): HolType = Tycomp("->", List(ty1, ty2))
