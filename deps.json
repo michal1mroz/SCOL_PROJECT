@@ -1,0 +1,81 @@
+{
+
+"Ind": ["Def1", "Equal", "EqCong", "Bool", "BoolClass"],
+
+"Exn": [],
+
+"Preterm": ["Type", "Term", "Utils1", "Names"],
+
+"Printer": ["Format", "Type", "Term", "Thm", "Utils1", "Names", "DModes", "Preterm", "TypeAnal", "TypeAnnot"],
+
+"Term": ["DLTree", "Type"],
+
+"Def2": ["DLTree", "Def1", "Equal", "Bool", "BoolClass", "Pair"],
+
+"Def1": ["DLTree", "Equal", "EqCong", "Bool", "BoolClass"],
+
+"NatrNumrl": ["Def2", "Equal", "EqCong", "Bool", "Nat"],
+
+"Parser": ["Type", "Term", "Reader", "Lexer", "Names", "Preterm", "TypeAnal"],
+
+"Equal": [],
+
+"System": ["Big_int"],
+
+"TypeAnnot": ["Term", "Utils1", "Preterm", "TypeAnal"],
+
+"NatRel": ["Def2", "Equal", "EqCong", "Bool", "BoolAlg", "BoolClass", "Nat", "NatNumrl", "NatArith"],
+
+"Dmodes": [],
+
+"Lexer": ["Reader", "Names"],
+
+"Reader": [],
+
+"DLTree": [],
+
+"Wrap": ["Type", "Term", "Thm", "Utils1", "Utils2", "CoreThry"],
+
+"Banner": [],
+
+"Names": ["DLTree"],
+
+"Thm": ["DLTree", "Type", "Term", "Utils1"],
+
+"BoolAlg": ["Equal", "Bool", "EqCong"],
+
+"Type": ["DLTree"],
+
+"Utils2": ["Type", "Term", "Thm", "Utils1", "Names"],
+
+"Lib": [],
+
+"NatEval": ["Equal", "EqCong", "Bool", "BoolAlg", "BoolClass", "Nat", "NatNumrl", "NatArith", "NatRel"],
+
+"Commonhol": [],
+
+"Corethry": ["Type", "Term", "Thm", "Names", "Parser"],
+
+"Pair": ["Def1", "Equal", "EqCong", "Bool", "BoolClass"],
+
+"Natarith": ["Def2", "Equal", "EqCong", "Bool", "BoolAlg", "BoolClass", "Nat", "NatNumrl"],
+
+"Nat": ["Def1", "Def2", "Equal", "EqCong", "Bool", "BoolAlg", "BoolClass", "Ind"],
+
+"Help": [],
+
+"Store": ["DLTree", "Thm", "Utils1", "Utils2"],
+
+"EqCong": ["Equal"],
+
+"Holzero": ["Exn", "Lib", "Def1", "Def2", "Equal", "EqCong", "Bool", "BoolAlg", "BoolClass", "Pair", "Ind", "Nat", "NatNumrl", "NatArith", "NatRel", "NatEval", "Help", "Banner"],
+
+"TypeAnal": ["Type", "Term", "Utils1", "Preterm"],
+
+"Bool": ["Equal"],
+
+"BoolClass": ["Equal", "EqCong", "Bool", "BoolAlg"],
+
+"Utils1": ["Type", "Term"]
+
+}
