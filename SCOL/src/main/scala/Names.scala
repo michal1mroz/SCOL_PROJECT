@@ -1,4 +1,4 @@
-import main.scala.Lib.{cannot, invAssoc, quote}
+import main.scala.Lib.quote
 import utils.ScolException.{ScolFail, scolReport, scolWarn}
 
 import scala.collection.mutable
@@ -192,7 +192,7 @@ object Names {
     scolReport("Type fixity of " + s + " reset to Nonfix.")
   }
 
-  private val theEnumDb : mutable.HashMap[String, (String, (String, String))] = mutable.HashMap.empty
+  val theEnumDb : mutable.HashMap[String, (String, (String, String))] = mutable.HashMap.empty
 
   def getEnumZeroOp(s : String) : String = theEnumDb(s) match
     case (x, _) => x
@@ -207,7 +207,7 @@ object Names {
     }
   }
 
-  private val theEnumBrackets : mutable.HashMap[String, String] = mutable.HashMap.empty
+  val theEnumBrackets : mutable.HashMap[String, String] = mutable.HashMap.empty
 
 
   def isEnumBracket(s : String) : Boolean = theEnumBrackets.contains(s)
@@ -240,12 +240,11 @@ object Names {
 
   def isEnumOpenclose(s: String): Boolean = {
     try {
-      val z = getEnumBracketZero(s)
-      val (br1, br2) = getEnumZeroBrackets(z)
+      val (br1, br2) = getEnumZeroBrackets(getEnumBracketZero(s))
       s == (br1 + br2)
     }
     catch {
-      case _: Throwable => false
+      case _: ScolFail => false
     }
   }
 

@@ -1,9 +1,8 @@
 package main.scala
-
 import Lib.*
 
-object Main {
-  def main(args: Array[String]): Unit = {
+@main
+def main(): Unit = {
     println("Hello world!")
     //  val l = List(1)
     //  println(l.head)
@@ -50,22 +49,4 @@ object Main {
     val result4 = unions_(isEqual, lists)
     println(result3)
     println(result4)
-
-    val empty = DlTree.dltreeEmpty
-    println(empty)
-    println(DlTree.log2(8))
-    val intList: List[(Int, String)] = List((5,"apple"), (2, "banana"), (8,"orange"))
-    val tree: DlTree.Node[Int, String] = DlTree.dltreeMake(intList)
-    println(tree)
-    println(DlTree.dltreeElems(tree))
-    println(DlTree.level(tree))
-
-    DlTree.dltreePrint(tree)
-    val tree2 = DlTree.dltreeInsert((3, "onion"), tree)
-    println(tree2)
-    DlTree.dltreePrint(tree2)
-    val tree3 = DlTree.dltreeInsert((4, "cat"), tree2)
-    println(tree3)
-    DlTree.dltreePrint(tree3)
-  }
 }
