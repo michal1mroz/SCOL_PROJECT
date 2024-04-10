@@ -58,9 +58,7 @@ object Term {
   // fixme not sure if its correct or not, not really sure what it does
   def mkIconst(x: String, tytheta: List[(HolType, HolType)]): Term = {
     val ty0 = theConsts.getOrElse(x, throw ScolFail(s"No constant called $x"))
-    val ty = tytheta.foldLeft(ty0) {
-      case (currentTy, (ty1, ty2)) => typeInst(List((ty1, ty2)), currentTy)
-    }
+    val ty = typeInst(tytheta, ty0)
     Tmconst(x, ty)
   }
 
