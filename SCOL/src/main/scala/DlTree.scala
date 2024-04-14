@@ -1,6 +1,8 @@
 package main.scala
 
 import scala.math.{Ordering, log, min}
+import scala.Function1.*
+
 import Lib.{cut, hdTl, mergesort}
 
 import scala.annotation.tailrec
@@ -177,5 +179,7 @@ object DlTree {
       case Leaf() => Branch(1, xy0, Leaf(), Leaf())
     }
   }
+
+ 
 
 }

@@ -1,3 +1,5 @@
+package main.scala
+
 import Type.{HolType, destFunType, mkFunType, typeInst}
 import utils.ScolException.ScolFail
 

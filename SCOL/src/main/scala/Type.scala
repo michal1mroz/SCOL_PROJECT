@@ -1,3 +1,5 @@
+package main.scala
+
 import utils.ScolException.ScolFail
 
 import scala.collection.mutable
@@ -58,7 +60,8 @@ object Type {
 
   //fixme don't know how to define them maybe Scala compiler will figure it out
 //  def typeEq(x: HolType, y: HolType): Boolean = x == y
-
+  def typeEq(x: HolType, y: HolType): Boolean = x == y
+  
   //fixme don't know how to define them
 //  def typeLt(x: HolType, y: HolType): Boolean = x.toString < y.toString
 
