@@ -1,4 +1,6 @@
-import main.scala.Lib.quote
+package main.scala
+
+import Lib.quote
 import utils.ScolException.{ScolFail, scolReport, scolWarn}
 
 import scala.collection.mutable

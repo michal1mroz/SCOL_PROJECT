@@ -247,6 +247,41 @@ object Lib {
   // Define the unfoldl function
   def unfoldl[A, B](dest_fn: A => (A, B), x: A): (A, List[B]) = unfoldl0(dest_fn, x, Nil)
 
+  def unfoldl1[A](dest_fn: A => (A, A), x: A): List[A] = {
+    val (x1, xs) = unfoldl(dest_fn, x)
+    x1 :: xs
+  }
+
+  def  unfoldr0[A, B](dest_fn: B => (A, B), x: B, xs:List[A]): (B, List[A]) = {
+    try{
+      val (x1, x2) = dest_fn(x)
+      unfoldr0(dest_fn, x2, x1::xs)
+    } catch{
+      case _: ScolFail => (x, xs.reverse)
+    }
+  }
+
+  def unfoldr[A, B](dest_fn: B => (A ,B), x: B): (B, List[A]) = {
+    val (x1, xs) = unfoldr0(dest_fn, x, List.empty)
+    (x1, xs.reverse)
+  }
+
+  def unfoldr1[A](dest_fn: A => (A, A), x: A): List[A] = {
+    val (x1, xs) = unfoldr0(dest_fn, x, List.empty)
+    (x1::xs).reverse
+  }
+
+  def unfold0[A](dest_fn: A => (A, A), x:A, xs:List[A]): List[A] = {
+    try{
+      val (x1, x2) = dest_fn(x)
+      unfold0(dest_fn, x1, unfold0(dest_fn, x2, xs))
+    }catch {
+      case _: ScolFail => x::xs
+    }
+  }
+
+  def unfold[A](dest_fn: A => (A, A), x: A): List[A] = unfold0(dest_fn, x, List.empty)
+
   def find[A](p: A => Boolean, l: List[A]): A = l.find(p) match
     case Some(x) => x
     case _ => throw ScolFail("Find failed to find element satisfying boolean function in a supplied list")

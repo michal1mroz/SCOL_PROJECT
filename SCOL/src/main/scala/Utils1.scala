@@ -7,275 +7,279 @@ import Lib.*
 
 import scala.annotation.tailrec
 
-
-def zip[A, B](l1: List[A], l2: List[B]) : List[(A,B)] = (l1, l2) match {
-  case (Nil, _) | (_, Nil) => Nil
-  case (x :: xs, y :: ys) => (x, y) :: zip(xs, ys)
-}
-
-sealed trait DestructedType
-
-case class TypeVarDestructed(name: String) extends DestructedType
-case class TypeCompDestructed(name: String, types: List[HolType]) extends DestructedType
-
-def destType(ty: HolType): DestructedType =
-  if (isVarType(ty)) TypeVarDestructed(destVarType(ty))
-  else TypeCompDestructed(destCompType(ty)._1, destCompType(ty)._2)
-
-def isBoolType(ty: HolType): Boolean = {
-  try {
-    val (x, _) = destCompType(ty)
-    x == "bool"
-  }catch {
-    case _: ScolFail => false
+object Utils1 {
+  def zip[A, B](l1: List[A], l2: List[B]): List[(A, B)] = (l1, l2) match {
+    case (Nil, _) | (_, Nil) => Nil
+    case (x :: xs, y :: ys) => (x, y) :: zip(xs, ys)
   }
-}
 
-val aTy: HolType = mkVarType("a")
-val bTy: HolType = mkVarType("b")
-val cTy: HolType = mkVarType("c")
+  sealed trait DestructedType
 
-def typeTyVars(ty: HolType): List[HolType] = destType(ty) match {
-  case Tyvar(_) => List(ty)
-  case Tycomp(_,tys) => tys.flatMap(typeTyVars)
-}
+  case class TypeVarDestructed(name: String) extends DestructedType
 
-def typeMatch0(theta: List[(HolType, HolType)], patt: HolType, ty: HolType): List[(HolType, HolType)] = {
-  (destType(patt), destType(ty)) match {
-    case (Tyvar(xpatt), _) =>
-      try {
-        val tyPrime =assoc(patt, theta)
-        val flag = assert1(typeEq(ty, tyPrime), "Match failure")
-        theta
-      }
-      catch {
-        case _ : Exception =>
-          (patt, ty) :: theta
-      }
-    case (Tycomp(xpatt, patts), Tycomp(x, tys)) =>
-      val flag = assert1(x==xpatt, "Match failure")
-      zip(patts, tys).foldLeft(theta)((acc, pair) => typeMatch0(acc, pair._1, pair._2))
-    case _ => throw ScolFail("typeMatch0: Match failure")
+  case class TypeCompDestructed(name: String, types: List[HolType]) extends DestructedType
+
+  def destType(ty: HolType): DestructedType =
+    if (isVarType(ty)) TypeVarDestructed(destVarType(ty))
+    else TypeCompDestructed(destCompType(ty)._1, destCompType(ty)._2)
+
+  def isBoolType(ty: HolType): Boolean = {
+    try {
+      val (x, _) = destCompType(ty)
+      x == "bool"
+    } catch {
+      case _: ScolFail => false
+    }
   }
-}
 
-def typeMatch(patt: HolType, ty: HolType) = {
-  typeMatch0(List(), patt, ty)
-}
+  val aTy: HolType = mkVarType("a")
+  val bTy: HolType = mkVarType("b")
+  val cTy: HolType = mkVarType("c")
 
-sealed trait DestructedTerm
-
-case class TmvarDestructed(name: String, holType: HolType) extends DestructedTerm
-case class TmconstDestructed(name: String, holType: HolType) extends DestructedTerm
-case class TmcombDestructed(term1: HolType, term2: HolType) extends DestructedTerm
-case class TmabsDestructed(term1: HolType, term2: HolType) extends DestructedTerm
-
-def destTerm(tm: Term) : DestructedTerm = {
-  if(isVar(tm)) {
-    val (name, holType) = destVar(tm)
-    TmvarDestructed(name, holType)
-  } else if(isConst(tm)){
-    val (name, holType) = destConst(tm)
-    TmconstDestructed(name, holType)
-  } else if (isComb(tm)) {
-    val (term1, term2): (HolType, HolType) = destComb(tm) : @unchecked
-    TmcombDestructed(term1, term2)
-  } else{
-    val (term1, term2): (HolType, HolType) = destAbs(tm) : @unchecked
-    TmabsDestructed(term1, term2)
+  def typeTyVars(ty: HolType): List[HolType] = destType(ty) match {
+    case Tyvar(_) => List(ty)
+    case Tycomp(_, tys) => tys.flatMap(typeTyVars)
   }
-}
 
-def mkConst(x: String, ty: HolType): Term = {
-  val func = "mk_const"
-  val ty0 = try2(getConstGtype, x)
-  try
-    val theta = typeMatch(ty0, ty)
-    mkIconst(x, theta)
-  catch
-    case _: ScolFail => throw ScolFail("Type doesn't match generic type")
-}
-
-def constName(tm: Term): String =
-  try2[Term, String]((fst[String, HolType]).compose(destConst), tm)
-
-def constType(tm: Term): HolType =
-  try2((snd[String, HolType]).compose(destConst), tm)
-
-def varName(tm: Term): String =
-  try2((fst[String, HolType]).compose(destVar), tm)
-
-def varType(tm: Term): HolType =
-  try2((snd[String, HolType]).compose(destVar), tm)
-
-def listMkComb(tm: Term,tms: List[Term]): Term = {
-  try {
-    foldl_[Term, Term](mkComb)(tm, tms)
+  def typeMatch0(theta: List[(HolType, HolType)], patt: HolType, ty: HolType): List[(HolType, HolType)] = {
+    (destType(patt), destType(ty)) match {
+      case (Tyvar(xpatt), _) =>
+        try {
+          val tyPrime = assoc(patt, theta)
+          val flag = assert1(typeEq(ty, tyPrime), "Match failure")
+          theta
+        }
+        catch {
+          case _: Exception =>
+            (patt, ty) :: theta
+        }
+      case (Tycomp(xpatt, patts), Tycomp(x, tys)) =>
+        val flag = assert1(x == xpatt, "Match failure")
+        zip(patts, tys).foldLeft(theta)((acc, pair) => typeMatch0(acc, pair._1, pair._2))
+      case _ => throw ScolFail("typeMatch0: Match failure")
+    }
   }
-  catch{
-    case e: ScolFail => throw ScolFail(e.getMessage)
+
+  def typeMatch(patt: HolType, ty: HolType) = {
+    typeMatch0(List(), patt, ty)
   }
-}
 
-def mkBin(f: Term, tm1: Term, tm2: Term): Term = {
-  try{
-    listMkComb(f, List(tm1, tm2))
+  sealed trait DestructedTerm
+
+  case class TmvarDestructed(name: String, holType: HolType) extends DestructedTerm
+
+  case class TmconstDestructed(name: String, holType: HolType) extends DestructedTerm
+
+  case class TmcombDestructed(term1: HolType, term2: HolType) extends DestructedTerm
+
+  case class TmabsDestructed(term1: HolType, term2: HolType) extends DestructedTerm
+
+  def destTerm(tm: Term): DestructedTerm = {
+    if (isVar(tm)) {
+      val (name, holType) = destVar(tm)
+      TmvarDestructed(name, holType)
+    } else if (isConst(tm)) {
+      val (name, holType) = destConst(tm)
+      TmconstDestructed(name, holType)
+    } else if (isComb(tm)) {
+      val (term1, term2): (HolType, HolType) = destComb(tm): @unchecked
+      TmcombDestructed(term1, term2)
+    } else {
+      val (term1, term2): (HolType, HolType) = destAbs(tm): @unchecked
+      TmabsDestructed(term1, term2)
+    }
   }
-  catch{
-    case e: ScolFail => throw ScolFail(e.getMessage)
+
+  def mkConst(x: String, ty: HolType): Term = {
+    val func = "mk_const"
+    val ty0 = try2(getConstGtype, x)
+    try
+      val theta = typeMatch(ty0, ty)
+      mkIconst(x, theta)
+    catch
+      case _: ScolFail => throw ScolFail("Type doesn't match generic type")
   }
-}
 
-def destBin(tm: Term): (Term, Term, Term) = {
-  try {
-    val (ftm1, tm2) = destComb(tm)
-    val (f, tm1) = destComb(ftm1)
-    (f, tm1, tm2)
+  def constName(tm: Term): String =
+    try2[Term, String]((fst[String, HolType]).compose(destConst), tm)
+
+  def constType(tm: Term): HolType =
+    try2((snd[String, HolType]).compose(destConst), tm)
+
+  def varName(tm: Term): String =
+    try2((fst[String, HolType]).compose(destVar), tm)
+
+  def varType(tm: Term): HolType =
+    try2((snd[String, HolType]).compose(destVar), tm)
+
+  def listMkComb(tm: Term, tms: List[Term]): Term = {
+    try {
+      foldl_[Term, Term](mkComb)(tm, tms)
+    }
+    catch {
+      case e: ScolFail => throw ScolFail(e.getMessage)
+    }
   }
-  catch {
-    case _: ScolFail => throw ScolFail("Not a binary opertor")
+
+  def mkBin(f: Term, tm1: Term, tm2: Term): Term = {
+    try {
+      listMkComb(f, List(tm1, tm2))
+    }
+    catch {
+      case e: ScolFail => throw ScolFail(e.getMessage)
+    }
   }
-}
 
-def isBin(tm: Term): Boolean = {
-  try{
-    destBin(tm)
-    true
-  }catch{
-    case _: ScolFail => false
+  def destBin(tm: Term): (Term, Term, Term) = {
+    try {
+      val (ftm1, tm2) = destComb(tm)
+      val (f, tm1) = destComb(ftm1)
+      (f, tm1, tm2)
+    }
+    catch {
+      case _: ScolFail => throw ScolFail("Not a binary opertor")
+    }
   }
-}
 
-def destCbin(x: String)( tm: Term): (Term, Term) = {
-  try {
-    val (f, tm1, tm2) = destBin(tm)
-    assert(constName(f) == x)
-    (tm1, tm2)
-  } catch {
-    case _: ScolFail =>
-      throw ScolFail("Not a specified binary expression")
+  def isBin(tm: Term): Boolean = {
+    try {
+      destBin(tm)
+      true
+    } catch {
+      case _: ScolFail => false
+    }
   }
-}
 
-def mkBinder(f: Term, v:Term, tm0: Term): Term = {
-  try{
-    mkComb(f, mkAbs(v, tm0))
+  def destCbin(x: String)(tm: Term): (Term, Term) = {
+    try {
+      val (f, tm1, tm2) = destBin(tm)
+      assert(constName(f) == x)
+      (tm1, tm2)
+    } catch {
+      case _: ScolFail =>
+        throw ScolFail("Not a specified binary expression")
+    }
   }
-  catch{
-    case _: ScolFail => throw ScolFail("Failed to create binder")
+
+  def mkBinder(f: Term, v: Term, tm0: Term): Term = {
+    try {
+      mkComb(f, mkAbs(v, tm0))
+    }
+    catch {
+      case _: ScolFail => throw ScolFail("Failed to create binder")
+    }
   }
-}
 
-def destBinder(tm: Term): (Term, Term, Term) = {
-  try{
-    val (f, tm1) = destComb(tm)
-    val (v, tm0) = destAbs(tm1)
-    (f, v, tm0)
-  }catch {
-    case _: ScolFail => throw ScolFail("Not a binder expression")
+  def destBinder(tm: Term): (Term, Term, Term) = {
+    try {
+      val (f, tm1) = destComb(tm)
+      val (v, tm0) = destAbs(tm1)
+      (f, v, tm0)
+    } catch {
+      case _: ScolFail => throw ScolFail("Not a binder expression")
+    }
   }
-}
 
-def destCbinder(x: String, tm: Term): (Term, Term) = {
-  try{
-    val (f, v, tm0) = try2(destBinder, tm)
-    assert(constName(f) == x)
-    (v, tm0)
-  }catch {
-    case _: ScolFail => throw ScolFail("Not the specified binder expression")
+  def destCbinder(x: String)(tm: Term): (Term, Term) = {
+    try {
+      val (f, v, tm0) = try2(destBinder, tm)
+      assert(constName(f) == x)
+      (v, tm0)
+    } catch {
+      case _: ScolFail => throw ScolFail("Not the specified binder expression")
+    }
   }
-}
 
-def isBinder(tm: Term): Boolean = {
-  try {
-    destBinder(tm)
-    true
-  }catch {
-    case _: ScolFail => false
+  def isBinder(tm: Term): Boolean = {
+    try {
+      destBinder(tm)
+      true
+    } catch {
+      case _: ScolFail => false
+    }
   }
-}
 
-def isBoolTerm(tm: Term): Boolean = {
-  isBoolType(typeOf(tm))
-}
-
-// Equality
-def mkEq(tm1: Term, tm2: Term): Term = {
-  val (ty1, ty2) = (typeOf(tm1), typeOf(tm2))
-  assert1(typeEq(ty1, ty2),"Arg 1 type not equal to Arg 2")
-  val f = mkIconst("=", List((aTy, ty1)))
-  mkBin(f, tm1, tm2)
-}
-
-def destEq(tm: Term): (Term, Term) = {
-  try{
-    destCbin("=")(tm)
-  }catch {
-    case _: ScolFail => throw ScolFail("Not an equality")
+  def isBoolTerm(tm: Term): Boolean = {
+    isBoolType(typeOf(tm))
   }
-}
 
-def isEq(tm: Term): Boolean = {
-  can(destEq, tm)
-}
-
-// Implication
-def mkImp(tm1: Term, tm2: Term): Term = {
-  val ty1 = typeOf(tm1)
-  val ty2 = typeOf(tm2)
-  assert1(isBoolType(ty1), "Arg 1 not boolean")
-  assert1(isBoolType(ty2), "Arg 2 not boolean")
-  val f = mkGconst("==>")
-  mkBin(f, tm1, tm2)
-}
-
-def destImp(tm: Term): (Term, Term) = {
-  try1((destCbin("==>")), tm, "Not an implication")
-}
-
-def isImp(tm: Term): Boolean = {
-  can(destImp, tm)
-}
-
-// Existential
-
-def mkExists(v: Term, tm0: Term): Term = {
-  val ty = try1(varType, v, "Arg 1 not a variable")
-  val ty0 = typeOf(tm0)
-  assert1(isBoolType(ty0), "Arg 2 not boolean")
-  val f = mkIconst("?", List((aTy, ty)))
-  mkBinder(f, v, tm0)
-}
-
-def listMkExists(vs: List[Term], tm0: Term): Term = {
-  try {
-    foldr_[Term, Term](mkExists)(tm0, vs)
-  }catch {
-    case _: ScolFail => throw ScolFail("listMkExists failed")
+  // Equality
+  def mkEq(tm1: Term, tm2: Term): Term = {
+    val (ty1, ty2) = (typeOf(tm1), typeOf(tm2))
+    assert1(typeEq(ty1, ty2), "Arg 1 type not equal to Arg 2")
+    val f = mkIconst("=", List((aTy, ty1)))
+    mkBin(f, tm1, tm2)
   }
-}
 
-def doesExists(tm: Term): (Term, Term) = {
-  try{
-    destCbinder("?", tm)
-  }catch{
-    case _: ScolFail => throw ScolFail("Not an existential")
+  def destEq(tm: Term): (Term, Term) = {
+    try {
+      destCbin("=")(tm)
+    } catch {
+      case _: ScolFail => throw ScolFail("Not an equality")
+    }
   }
-}
 
-def stripExists(tm: Term): (Term, List[Term]) = {
-  unfoldl(doesExists, tm)
-}
+  def isEq(tm: Term): Boolean = {
+    can(destEq, tm)
+  }
 
-def isExists(tm: Term): Boolean = {
-  can(doesExists, tm)
-}
+  // Implication
+  def mkImp(tm1: Term, tm2: Term): Term = {
+    val ty1 = typeOf(tm1)
+    val ty2 = typeOf(tm2)
+    assert1(isBoolType(ty1), "Arg 1 not boolean")
+    assert1(isBoolType(ty2), "Arg 2 not boolean")
+    val f = mkGconst("==>")
+    mkBin(f, tm1, tm2)
+  }
 
-// Term utilities
+  def destImp(tm: Term): (Term, Term) = {
+    try1((destCbin("==>")), tm, "Not an implication")
+  }
 
-// fixme typeEq must work correctly, last 2 cases give type error
+  def isImp(tm: Term): Boolean = {
+    can(destImp, tm)
+  }
 
-/*
+  // Existential
+
+  def mkExists(v: Term, tm0: Term): Term = {
+    val ty = try1(varType, v, "Arg 1 not a variable")
+    val ty0 = typeOf(tm0)
+    assert1(isBoolType(ty0), "Arg 2 not boolean")
+    val f = mkIconst("?", List((aTy, ty)))
+    mkBinder(f, v, tm0)
+  }
+
+  def listMkExists(vs: List[Term], tm0: Term): Term = {
+    try {
+      foldr_[Term, Term](mkExists)(tm0, vs)
+    } catch {
+      case _: ScolFail => throw ScolFail("listMkExists failed")
+    }
+  }
+
+  def doesExists(tm: Term): (Term, Term) = {
+    try {
+      destCbinder("?")(tm)
+    } catch {
+      case _: ScolFail => throw ScolFail("Not an existential")
+    }
+  }
+
+  def stripExists(tm: Term): (Term, List[Term]) = {
+    unfoldl(doesExists, tm)
+  }
+
+  def isExists(tm: Term): Boolean = {
+    can(doesExists, tm)
+  }
+
+  // Term utilities
+
+  // fixme typeEq must work correctly, last 2 cases give type error
+
+  /*
 def termTyvars(tm: Term): List[HolType] = {
   destTerm(tm) match {
     case Tmvar(_, ty) =>
@@ -342,32 +346,36 @@ def varFreeIn(v: Term, tm: Term): Boolean = {
 
  */
 
-def variant(vs0: List[Term], v: Term): Term = {
-  val (x, ty) = try1(destVar, v, "Not a variable")
-  // fixme can rework this to use original map. Don't know how to do it
-  val xs0 = try map(varName, vs0) catch {case _: ScolFail => throw ScolFail("Non-var in avoidance list")}
-  val x1 = stringVariant(xs0, x)
-  mkVar(x1, ty)
-}
+  def variant(vs0: List[Term], v: Term): Term = {
+    val (x, ty) = try1(destVar, v, "Not a variable")
+    // fixme can rework this to use original map. Don't know how to do it
+    val xs0 = try map(varName, vs0) catch {
+      case _: ScolFail => throw ScolFail("Non-var in avoidance list")
+    }
+    val x1 = stringVariant(xs0, x)
+    mkVar(x1, ty)
+  }
 
-@tailrec
-def cvariantName(xs0: List[String], x: String): String = {
-  val x1 = stringVariant(xs0, x)
-  if (isConstName(x1)) cvariantName(xs0, x1 + "'")
-  else x1
-}
+  @tailrec
+  def cvariantName(xs0: List[String], x: String): String = {
+    val x1 = stringVariant(xs0, x)
+    if (isConstName(x1)) cvariantName(xs0, x1 + "'")
+    else x1
+  }
 
-def cvariant(vs0: List[Term], v: Term): Term = {
-  val (x, ty) = try1(destVar, v, "Not a variable")
-  // fixme can rework this to use original map. Don't know how to do it
-  val xs0 = try map(varName, vs0) catch {case _: ScolFail => throw ScolFail("Non-var in avoidanve list")}
-  val x1 = cvariantName(xs0, x)
-  mkVar(x1, ty)
-}
+  def cvariant(vs0: List[Term], v: Term): Term = {
+    val (x, ty) = try1(destVar, v, "Not a variable")
+    // fixme can rework this to use original map. Don't know how to do it
+    val xs0 = try map(varName, vs0) catch {
+      case _: ScolFail => throw ScolFail("Non-var in avoidanve list")
+    }
+    val x1 = cvariantName(xs0, x)
+    mkVar(x1, ty)
+  }
 
 
-case class Clash(v: Term) extends Exception
-/*
+  case class Clash(v: Term) extends Exception
+  /*
 def varInst0(vs0: List[Term], theta: List[(Term, Term)], tm: Term): Term = {
   destTerm(tm) match{
     case Tmvar(_,_) =>
@@ -471,3 +479,4 @@ def tyvarInst(tytheta: List[(HolType, HolType)], tm: Term): Term = {
 }
 
 */
+} 
