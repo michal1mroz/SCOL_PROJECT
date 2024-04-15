@@ -19,7 +19,8 @@ For 11.04.2024
 - [x] Port type.ml
 - [x] Port term.ml (not tested, may require further testing)
 - [ ] Port wrap.ml (Some functions that do not require further modules)
-- [ ] Port utils 1, 2
+- [ ] Port utils 1, 2 (not tested, utils2 depends on thm. Some functions depend on not yet implemented functions form
+other libs. utils1 has them commented out, utils2 is not fully implemented yet)
 - [ ] Port thm.ml
 
 For 18.04.2024:

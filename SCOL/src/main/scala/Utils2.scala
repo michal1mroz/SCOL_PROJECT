@@ -44,7 +44,7 @@ object Utils2 {
   def listMkImp(tms: List[Term], tm: Term): Term = {
     try {
       foldr_(mkImp)(tm, tms)
-    }catch{
+    } catch {
       case _: ScolFail => throw ScolFail("Faile in listMkImp")
     }
   }
@@ -54,31 +54,31 @@ object Utils2 {
   def mkSelect(v: Term, tm0: Term): Term = {
     assert1(isBoolTerm(tm0), "mkSelect, Arg2 not boolean")
     val f = mkIconst("@", List((aTy, typeOf(v))))
-    try{
+    try {
       mkBinder(f, v, tm0)
-    }catch{
+    } catch {
       case _: ScolFail => throw ScolFail("mkBinder failed in mkSelect")
     }
   }
 
-  def destSelect(tm: Term): (Term, Term) = try1(destCbinder("@"),tm, "destSelect, Not a selection")
+  def destSelect(tm: Term): (Term, Term) = try1(destCbinder("@"), tm, "destSelect, Not a selection")
 
   def isSelect(tm: Term): Boolean = can(destSelect, tm)
 
   def mkForall(v: Term, tm0: Term): Term = {
     assert1(isBoolTerm(tm0), "mkForall, Arg 2 not boolean")
     val f = mkIconst("!", List((aTy, typeOf(v))))
-    try{
+    try {
       mkBinder(f, v, tm0)
-    }catch{
+    } catch {
       case _: ScolFail => throw ScolFail("mkBinder failed in mkForall")
     }
   }
 
   def listMkForall(vs: List[Term], tm0: Term): Term = {
-    try{
-      foldr_(mkForall)(tm0,vs)
-    }catch{
+    try {
+      foldr_(mkForall)(tm0, vs)
+    } catch {
       case _: ScolFail => throw ScolFail("foldr_ failed in listMkForall")
     }
   }
@@ -100,7 +100,7 @@ object Utils2 {
 
   def destConj(tm: Term): (Term, Term) = try1(destCbin("/\\"), tm, "destConj, Not a conjunction")
 
-  def isConj(tm: Term): Boolean = can(destConj,tm)
+  def isConj(tm: Term): Boolean = can(destConj, tm)
 
   def stripConj(tm: Term): List[Term] = unfoldr1(destConj, tm)
 
@@ -122,28 +122,29 @@ object Utils2 {
     })
     */
 
-    private var genvarCount = 0
-    def genvar(ty: HolType): Term = {
-      val x = s"_$genvarCount"
-      genvarCount += 1
-      mkVar(x, ty)
-    }
+  private var genvarCount = 0
 
-    def listVariant(vs0: List[Term], vs: List[Term]): List[Term] = vs match {
-      case v1 :: vs1 =>
-        val v1_ = variant(vs0, v1)
-        val vs1_ = listVariant((v1_ :: vs0), vs1)
-        v1_ :: vs1_
-      case Nil => List.empty
-    }
+  def genvar(ty: HolType): Term = {
+    val x = s"_$genvarCount"
+    genvarCount += 1
+    mkVar(x, ty)
+  }
 
-    def listCvariant(vs0: List[Term], vs: List[Term]): List[Term] = vs match{
-      case v1 :: vs1 =>
-        val v1_ = cvariant(vs0, v1)
-        val vs1_ = listCvariant((v1_ :: vs0), vs1)
-        v1_ :: vs1_
-      case Nil => List.empty
-    }
+  def listVariant(vs0: List[Term], vs: List[Term]): List[Term] = vs match {
+    case v1 :: vs1 =>
+      val v1_ = variant(vs0, v1)
+      val vs1_ = listVariant((v1_ :: vs0), vs1)
+      v1_ :: vs1_
+    case Nil => List.empty
+  }
+
+  def listCvariant(vs0: List[Term], vs: List[Term]): List[Term] = vs match {
+    case v1 :: vs1 =>
+      val v1_ = cvariant(vs0, v1)
+      val vs1_ = listCvariant((v1_ :: vs0), vs1)
+      v1_ :: vs1_
+    case Nil => List.empty
+  }
   /*
     def allVars(tm: Term): List[Term] = destTerm(tm) match{
       case Tmvar(_, _) => List(tm)
@@ -154,4 +155,46 @@ object Utils2 {
 
     def listAllVars(tms: List[Term]): Term = foldl((vs, tm) => union_(termEq, vs, allVars(tm)))(List.empty)(tms)
   */
+  /*
+
+  Fixme no subst function. Requires sameTypes function(????), type and term comparator
+
+  case class Clash(term: Term) extends Exception
+
+  def subst0(vs0: List[Term], theta: List[(Term, Term)], tm:Term): Term ={
+    try{
+      val (_, tm_) = find(fst.compose(alphaEq), theta)
+      val vsf_ = freeVars(tm_)
+      if (disjoint_(termEq, vsf_, vs0)) tm_
+      else{
+        val v_ = find[Term](v0 => mem_(term_eq(v0, vsf_)), vs0.reverse)
+        throw Clash(v_)
+      }
+    } catch{
+      case _: ScolFail => destTerm(tm) match{
+        case Tmvar(_, _) | Tmconst(_, _) => tm
+        case Tmcomb(tm1, tm2) =>
+          val tm1_ = subst0(vs0, theta, tm1)
+          val tm2_ = subst0(vs0, theta, tm2)
+          if (tm1_ == tm1 && tm2_ == tm2) tm
+          else mkComb(tm1_, tm2_)
+        case Tmabs(v, tm0) =>
+          val theta_ = fstFilter(!varFreeIn, theta)
+          try{
+            val tm0_ = subst0(v :: vs0, theta_, tm0)
+            if(tm0_ == tm0) tm else mkAbs(v, tm0_)
+          }catch {
+            case Clash(v_) =>
+              assert(termEq(v, v_))
+              val vsf = freeVars(tm0)
+              val vsf_ = flatten(map(freeVars.compost(snd)), theta)
+              val u = cvariant(vs0 ++ vsf_ ++ vsf, v)
+              val tm0_ = subst0(vs0, (v, u) :: theta_, tm0)
+              mkAbs(u, tm0_)
+          }
+      }
+    }
+  }
+
+*/
 }
