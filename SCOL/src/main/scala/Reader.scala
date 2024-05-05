@@ -2,13 +2,15 @@ import utils.ScolException.ReaderFail
 
 import scala.annotation.targetName
 
+
+
 //noinspection DuplicatedCode
 object Reader {
 
     type Reader[A, B] = A => (B, A)
 
       @targetName("|||")
-      def |||[A, B](readFn1: Reader[A, B], readFn2: Reader[A, B]): Reader[A, B] = {
+      infix def |||[A, B](readFn1: Reader[A, B], readFn2: Reader[A, B]): Reader[A, B] = {
         src =>
           try {
             readFn1(src)
@@ -18,7 +20,7 @@ object Reader {
       }
 
     @targetName(">>>")
-    def >>>[A, B, C](readFn1: Reader[A, B], readFn2: Reader[A, C]): Reader[A, (B, C)] = {
+    infix def >>>[A, B, C](readFn1: Reader[A, B], readFn2: Reader[A, C]): Reader[A, (B, C)] = {
       src =>
         val (x1, src1) = readFn1(src)
         val (x2, src2) = readFn2(src1)
@@ -26,7 +28,7 @@ object Reader {
     }
 
     @targetName("*>>")
-    def *>>[A, B, C](readFn1: Reader[A, B], readFn2: Reader[A, C]): Reader[A, C] = {
+    infix def *>>[A, B, C](readFn1: Reader[A, B], readFn2: Reader[A, C]): Reader[A, C] = {
       src =>
         val (x1, src1) = readFn1(src)
         val (x2, src2) = readFn2(src1)
@@ -34,7 +36,7 @@ object Reader {
     }
 
     @targetName(">>*")
-    def >>*[A, B, C](readFn1: Reader[A, B], readFn2: Reader[A, C]): Reader[A, B] = {
+    infix def >>*[A, B, C](readFn1: Reader[A, B], readFn2: Reader[A, C]): Reader[A, B] = {
       src =>
         val (x1, src1) = readFn1(src)
         val (x2, src2) = readFn2(src1)
@@ -42,7 +44,7 @@ object Reader {
     }
 
     @targetName("|@|")
-    def |@|[A, B](readFn1 : Reader[A, B], readFn2 : B => Reader[A, B]) : Reader[A, B] = {
+    infix def |@|[A, B](readFn1 : Reader[A, B], readFn2 : B => Reader[A, B]) : Reader[A, B] = {
       src =>
         val (x1, src1) = readFn1(src)
         try{
@@ -54,7 +56,7 @@ object Reader {
     }
 
     @targetName(">@>")
-    def >@>[A, B, C](readFn1: Reader[A, B], readFn2: B => Reader[A, C]): Reader[A, (B, C)] = {
+    infix def >@>[A, B, C](readFn1: Reader[A, B], readFn2: B => Reader[A, C]): Reader[A, (B, C)] = {
       src =>
         val (x1, src1) = readFn1(src)
         val (x2, src2) = readFn2(x1)(src1)
@@ -62,7 +64,7 @@ object Reader {
     }
 
     @targetName("*@>")
-    def *@>[A, B, C](readFn1: Reader[A, B], readFn2: B => Reader[A, C]): Reader[A, C] = {
+    infix def *@>[A, B, C](readFn1: Reader[A, B], readFn2: B => Reader[A, C]): Reader[A, C] = {
       src =>
         val (x1, src1) = readFn1(src)
         val (x2, src2) = readFn2(x1)(src1)
@@ -86,14 +88,14 @@ object Reader {
     }
 
     @targetName("@:")
-    def @:[A, B, C](f : B => C, readFn : Reader[A, B]): Reader[A, C] = {
+    infix def @:[A, B, C](f : B => C, readFn : Reader[A, B]): Reader[A, C] = {
       src =>
         val (x1, src1) = readFn(src)
         (f(x1), src1)
     }
 
     @targetName("@!:")
-    def @!:[A, B](f: B => String, readFn: Reader[A, B], src : A): String = {
+    infix def @!:[A, B](f: B => String, readFn: Reader[A, B], src : A): String = {
       val (x1, src1) = readFn(src)
       f(x1)
     }
@@ -124,7 +126,7 @@ object Reader {
       }
     }
 
-    def readElemIn[A](es: Set[A]): Reader[List[A], A] = {
+    def readElemIn[A](es: List[A]): Reader[List[A], A] = {
         def testFn(e: A): Boolean = es.contains(e)
         readElemWith(testFn)
     }
