@@ -1,6 +1,6 @@
 import scala.util.{Failure, Success, Try}
 import Reader.{>>>, @:, *}
-import main.scala.Names.{isAlphanumChar1, isAlphanumChar2, isDigit, isEnumBracket, isKeyword, isPunctuationChar, isSymbolicChar, isWhitespaceChar}
+import main.scala.Names.{isAlphanumChar1, isAlphanumChar2, isDigit, isEnumBracket, isKeyword, isNumeric, isPunctuationChar, isSymbolicChar, isWhitespaceChar}
 import utils.ScolException.{LexFail, ReaderFail}
 
 import scala.annotation.targetName
@@ -13,7 +13,7 @@ object Lexer {
   private def lexCharIn = readElemIn[List[Char]]
   private def lexCharNotIn = readElemNotIn[List[Char]]
   private def lexList[A] = readList[List[Char], A]
-  private def lexEnd = readEnd[List[Char]]
+  private def lexEnd = readEnd[Char]
 
 
   @targetName("/+")
@@ -44,6 +44,7 @@ object Lexer {
 
   // Token lexer
   private def lexToken0(dfx : Boolean, vmrk : VarMark) : Reader[List[Char], Token] = {
+
       // Punctuation
       def punctuationReader: Reader[List[Char], Token] = {
         @:[List[Char], Char, Token](
@@ -57,50 +58,64 @@ object Lexer {
 
       // Alphanumeric
       def alphanumReader: Reader[List[Char], Token] = {
-        @:[Char, (Char, List[Char]), Token ] (
+        @:[List[Char], (Char, List[Char]), Token ] (
           (c : Char, cs : List[Char]) => {
-          val x = (c :: cs).toString()
+          val x = (c :: cs).mkString
           if (isKeyword(x) || isEnumBracket(x))
             if (dfx || vmrk != NoMark) {
-              throw LexFail(s"Cannot mark reserved word '$c'")
+              throw LexFail(s"Cannot mark reserved word '$x'")
             }else{
               ReswordTok(x)
             }
           else
             IdentTok(dfx, vmrk, x)
         },
-          >>>[Char, Char, List[Char]]
+          >>>[List[Char], Char, List[Char]]
             (lexCharWith(isAlphanumChar1), lexList(0, lexCharWith(isAlphanumChar2))))
       }
 
     // Numeric
-      def numericReader: Reader[List[Char], Token] =
-        (readElemWith(isDigit) >>> readList(0, readElemWith(isAlphanumChar2))).map { case (c, cs) =>
-          val str = (c :: cs).mkString
-          if (!isNumeric(str))
-            lexError("Non-numeric character in numeric token")
-          if (vmrk == TmvarMark)
-            lexError("Cannot mark numeric with '%'")
-          else NumericTok((dfx, vmrk, str))
-        }
+      def numericReader: Reader[List[Char], Token] = {
+        @:[List[Char], (Char, List[Char]), Token](
+          (c: Char, cs: List[Char]) => {
+            val x = (c :: cs).mkString
+            if (!isNumeric(x))
+              throw LexFail(s"Non numeric character $c in numeric token $x")
 
-      // Symbolic
-      def symbolicReader: Reader[List[Char], Token] =
-        readList(1, readElemWith(isSymbolicChar)).map { cs =>
-          val str = cs.mkString
-          if (isKeyword(str) || isEnumBracket(str))
-            if (dfx || vmrk != NoMark)
-              lexError(s"Cannot mark reserved word '$str'")
-            else ReswordTok(str)
-          else IdentTok((dfx, vmrk, str))
-        }
+            else if (vmrk == TmvarMark)
+              throw LexFail("Cannot mark numeric with '%'")
+
+            else NumericTok(dfx, vmrk ,x)
+          },
+          >>>[List[Char], Char, List[Char]]
+            (lexCharWith(isDigit), lexList(0, lexCharWith(isAlphanumChar2))))
+      }
+
+    // Symbolic
+      def symbolicReader: Reader[List[Char], Token] = {
+        @:[List[Char], List[Char], Token](
+          (cs: List[Char]) => {
+            val x = cs.mkString
+            if (isKeyword(x) || isEnumBracket(x))
+              if (dfx || vmrk != NoMark)
+                throw LexFail(s"Cannot mark reserved word '$x'")
+              else
+                ReswordTok(x)
+            else
+              IdentTok(dfx, vmrk, x)
+          },
+          lexList(1, lexCharWith(isSymbolicChar)))
+
+      }
 
       // Quote (You need to implement this)
       def quoteReader: Reader[List[Char], Token] =
         ???
+
+
       |||(punctuationReader ,
-        |||(alphanumReader, 
-          |||(numericReader, 
+        |||(alphanumReader,
+          |||(numericReader,
           |||(symbolicReader, quoteReader))))
   }
 
@@ -111,10 +126,10 @@ object Lexer {
 
   def lex(src: List[Char]): List[Token] = {
     try {
-      val (tokens, _) = >>*(lexList(0, >>*(lexToken ,lexWhitespace)), lexEnd)(src)
+      val (tokens, _) = >>*[List[Char], List[Token], Unit](lexList(0, >>*(lexToken ,lexWhitespace)), lexEnd)(src)
       tokens
     } catch {
-      case ReaderFail => throw LexFail("Undiagnosed lexical error")
+      case _: ReaderFail => throw LexFail("Undiagnosed lexical error")
     }
   }
 
