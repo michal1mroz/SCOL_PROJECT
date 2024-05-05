@@ -3,7 +3,7 @@ import utils.ScolException.ReaderFail
 import scala.annotation.targetName
 
 //noinspection DuplicatedCode
-class Reader {
+object Reader {
 
     type Reader[A, B] = A => (B, A)
 
@@ -111,33 +111,34 @@ class Reader {
         else throw ReaderFail("Test function in readWith failed")
     }
 
-    def readElem[A](src: List[A]): (A, List[A]) = src match {
+    def readElem[A] : Reader[List[A], A] = {
       case e :: srcTail => (e, srcTail)
       case _ => throw ReaderFail("readElem found no element to read")
     }
 
-    def readElemWith[A](testFn: A => Boolean, src: List[A]): (A, List[A]) = {
-      val (x, srcRest) = readElem(src)
-      if (testFn(x)) (x, srcRest)
-      else throw ReaderFail("Test function in readElemWith failed")
+    def readElemWith[A](testFn: A => Boolean): Reader[List[A], A] = {
+      src => {
+        val (x, srcRest) = readElem(src)
+        if (testFn(x)) (x, srcRest)
+        else throw ReaderFail("Test function in readElemWith failed")
+      }
     }
 
-    def readElemIn[A](es: Set[A], src: List[A]): (A, List[A]) = {
-      def testFn(e: A): Boolean = es.contains(e)
-
-      readElemWith(testFn, src)
+    def readElemIn[A](es: Set[A]): Reader[List[A], A] = {
+        def testFn(e: A): Boolean = es.contains(e)
+        readElemWith(testFn)
     }
 
-    def readElemNotIn[A](es: List[A], src: List[A]): (A, List[A]) = {
+    def readElemNotIn[A](es: List[A]): Reader[List[A], A] = {
       def testFn(e: A): Boolean = !es.contains(e)
 
-      readElemWith(testFn, src)
+      readElemWith(testFn)
     }
 
-    def readStart[A](src: List[A]): (Unit, List[A]) =
+    def readStart[A] : Reader[List[A], Unit] = src =>
       if (src.nonEmpty) ((), src) else throw ReaderFail("ReadStart failed there is nothing to read")
 
-    def readEnd[A](src: List[A]): (Unit, List[A]) =
+    def readEnd[A] : Reader[List[A], Unit] = src =>
       if (src.isEmpty) ((), src) else throw ReaderFail("ReadEnd failed there is more to read")
 
 }
