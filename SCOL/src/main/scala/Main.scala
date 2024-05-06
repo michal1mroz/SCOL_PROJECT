@@ -7,7 +7,4 @@ import scala.annotation.showAsInfix
 def main(): Unit = {
     println("Hello world!")
     // Use the custom infix function
-
-    println(result) // Output: 8
-
 }

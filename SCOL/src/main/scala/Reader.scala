@@ -1,75 +1,75 @@
+import Reader.{Reader, |||}
 import utils.ScolException.ReaderFail
 
 import scala.annotation.targetName
-
 
 
 //noinspection DuplicatedCode
 object Reader {
 
     type Reader[A, B] = A => (B, A)
-
-      @targetName("|||")
-      infix def |||[A, B](readFn1: Reader[A, B], readFn2: Reader[A, B]): Reader[A, B] = {
-        src =>
-          try {
-            readFn1(src)
-          } catch {
-            case _: ReaderFail => readFn2(src)
-          }
-      }
-
-    @targetName(">>>")
-    infix def >>>[A, B, C](readFn1: Reader[A, B], readFn2: Reader[A, C]): Reader[A, (B, C)] = {
-      src =>
-        val (x1, src1) = readFn1(src)
-        val (x2, src2) = readFn2(src1)
-        ((x1, x2), src2)
-    }
-
-    @targetName("*>>")
-    infix def *>>[A, B, C](readFn1: Reader[A, B], readFn2: Reader[A, C]): Reader[A, C] = {
-      src =>
-        val (x1, src1) = readFn1(src)
-        val (x2, src2) = readFn2(src1)
-        (x2, src2)
-    }
-
-    @targetName(">>*")
-    infix def >>*[A, B, C](readFn1: Reader[A, B], readFn2: Reader[A, C]): Reader[A, B] = {
-      src =>
-        val (x1, src1) = readFn1(src)
-        val (x2, src2) = readFn2(src1)
-        (x1, src2)
-    }
-
-    @targetName("|@|")
-    infix def |@|[A, B](readFn1 : Reader[A, B], readFn2 : B => Reader[A, B]) : Reader[A, B] = {
-      src =>
-        val (x1, src1) = readFn1(src)
-        try{
-          val (x2, src2) = readFn2(x1)(src1)
-          (x2, src2)
-        }catch{
-          case _: ReaderFail => (x1, src1)
-        }
-    }
-
-    @targetName(">@>")
-    infix def >@>[A, B, C](readFn1: Reader[A, B], readFn2: B => Reader[A, C]): Reader[A, (B, C)] = {
-      src =>
-        val (x1, src1) = readFn1(src)
-        val (x2, src2) = readFn2(x1)(src1)
-        ((x1, x2), src2)
-    }
-
-    @targetName("*@>")
-    infix def *@>[A, B, C](readFn1: Reader[A, B], readFn2: B => Reader[A, C]): Reader[A, C] = {
-      src =>
-        val (x1, src1) = readFn1(src)
-        val (x2, src2) = readFn2(x1)(src1)
-        (x2, src2)
-    }
+//
+//      @targetName("|||")
+//      infix def |||[A, B](readFn1: Reader[A, B], readFn2: Reader[A, B]): Reader[A, B] = {
+//        src =>
+//          try {
+//            readFn1(src)
+//          } catch {
+//            case _: ReaderFail => readFn2(src)
+//          }
+//      }
+//
+//    @targetName(">>>")
+//    infix def >>>[A, B, C](readFn1: Reader[A, B], readFn2: Reader[A, C]): Reader[A, (B, C)] = {
+//      src =>
+//        val (x1, src1) = readFn1(src)
+//        val (x2, src2) = readFn2(src1)
+//        ((x1, x2), src2)
+//    }
+//
+//    @targetName("*>>")
+//    infix def *>>[A, B, C](readFn1: Reader[A, B], readFn2: Reader[A, C]): Reader[A, C] = {
+//      src =>
+//        val (x1, src1) = readFn1(src)
+//        val (x2, src2) = readFn2(src1)
+//        (x2, src2)
+//    }
+//
+//    @targetName(">>*")
+//    infix def >>*[A, B, C](readFn1: Reader[A, B], readFn2: Reader[A, C]): Reader[A, B] = {
+//      src =>
+//        val (x1, src1) = readFn1(src)
+//        val (x2, src2) = readFn2(src1)
+//        (x1, src2)
+//    }
+//
+//    @targetName("|@|")
+//    infix def |@|[A, B](readFn1 : Reader[A, B], readFn2 : B => Reader[A, B]) : Reader[A, B] = {
+//      src =>
+//        val (x1, src1) = readFn1(src)
+//        try{
+//          val (x2, src2) = readFn2(x1)(src1)
+//          (x2, src2)
+//        }catch{
+//          case _: ReaderFail => (x1, src1)
+//        }
+//    }
+//
+//    @targetName(">@>")
+//    infix def >@>[A, B, C](readFn1: Reader[A, B], readFn2: B => Reader[A, C]): Reader[A, (B, C)] = {
+//      src =>
+//        val (x1, src1) = readFn1(src)
+//        val (x2, src2) = readFn2(x1)(src1)
+//        ((x1, x2), src2)
+//    }
+//
+//    @targetName("*@>")
+//    infix def *@>[A, B, C](readFn1: Reader[A, B], readFn2: B => Reader[A, C]): Reader[A, C] = {
+//      src =>
+//        val (x1, src1) = readFn1(src)
+//        val (x2, src2) = readFn2(x1)(src1)
+//        (x2, src2)
+//    }
 
     def readList[A, B](n : Int, readFn : Reader[A, B]) : Reader[A, List[B]] = {
       src =>
@@ -143,4 +143,96 @@ object Reader {
     def readEnd[A] : Reader[List[A], Unit] = src =>
       if (src.isEmpty) ((), src) else throw ReaderFail("ReadEnd failed there is more to read")
 
+
+    extension[A, B](readFn1 : Reader[A, B]) {
+      @targetName("|||")
+      infix def |||(readFn2: Reader[A, B]): Reader[A, B] = {
+        src =>
+          try {
+            readFn1(src)
+          } catch {
+            case _: ReaderFail => readFn2(src)
+          }
+      }
+      @targetName(">>>")
+      infix def >>>[C](readFn2: Reader[A, C]): Reader[A, (B, C)] = {
+        src =>
+          val (x1, src1) = readFn1(src)
+          val (x2, src2) = readFn2(src1)
+          ((x1, x2), src2)
+      }
+
+      @targetName("*>>")
+      infix def *>>[C](readFn2: Reader[A, C]): Reader[A, C] = {
+        src =>
+          val (x1, src1) = readFn1(src)
+          val (x2, src2) = readFn2(src1)
+          (x2, src2)
+      }
+
+      @targetName(">>*")
+      infix def >>*[C](readFn2: Reader[A, C]): Reader[A, B] = {
+        src =>
+          val (x1, src1) = readFn1(src)
+          val (x2, src2) = readFn2(src1)
+          (x1, src2)
+      }
+
+      @targetName("|@|")
+      infix def |@|(readFn2: B => Reader[A, B]): Reader[A, B] = {
+        src =>
+          val (x1, src1) = readFn1(src)
+          try {
+            val (x2, src2) = readFn2(x1)(src1)
+            (x2, src2)
+          } catch {
+            case _: ReaderFail => (x1, src1)
+          }
+      }
+
+      @targetName(">@>")
+      infix def >@>[C](readFn2: B => Reader[A, C]): Reader[A, (B, C)] = {
+        src =>
+          val (x1, src1) = readFn1(src)
+          val (x2, src2) = readFn2(x1)(src1)
+          ((x1, x2), src2)
+      }
+
+      @targetName("*@>")
+      infix def *@>[C](readFn2: B => Reader[A, C]): Reader[A, C] = {
+        src =>
+          val (x1, src1) = readFn1(src)
+          val (x2, src2) = readFn2(x1)(src1)
+          (x2, src2)
+      }
+    }
 }
+
+
+//implicit class Reader2[A, B](private val r1: Reader1.Reader[A, B]) extends AnyVal {
+//  @targetName("|||")
+//  infix def |||(r2: Reader1.Reader[A, B]): Reader1.Reader[A, B] = Reader1.|||(r1, r2)
+//
+//  @targetName(">>>")
+//  infix def >>>[C](r2: Reader[A, C]): Reader[A, (B, C)] =
+//    Reader1.>>>(r1, r2)
+//
+//  @targetName("*>>")
+//  infix def *>>[C](r2: Reader[A, C]): Reader[A, C] = Reader1.*>>(r1, r2)
+//
+//  @targetName(">>*")
+//  infix def >>*[C](r2: Reader[A, C]): Reader[A, B] = Reader1.>>*(r1, r2)
+//
+//  @targetName("|@|")
+//  extension def |@|(r2: B => Reader[A, B]): Reader[A, B] = Reader1.|@|(r1, r2)
+//
+//  @targetName(">@>")
+//  infix def >@>[C](r2: B => Reader[A, C]): Reader[A, (B, C)] = Reader1.>@>(r1, r2)
+//
+//  @targetName("*@>")
+//  infix def *@>[C](r2: B => Reader[A, C]): Reader[A, C] = Reader1.*@>(r1, r2)
+//
+//  @targetName("@:")
+//  infix def @:[C](f: B => C): Reader[A, C] = Reader1.@:(f, r1)
+//
+//}

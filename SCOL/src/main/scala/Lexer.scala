@@ -1,7 +1,7 @@
-import Lexer./+
+import Lexer.{/+, lexCharWith}
 
 import scala.util.{Failure, Success, Try}
-import Reader.{>>>, @:, *}
+import Reader.*
 import main.scala.Lib.{charImplode, intOfString}
 import main.scala.Names.{isAlphanumChar1, isAlphanumChar2, isDigit, isEnumBracket, isKeyword, isNumeric, isPunctuationChar, isSymbolicChar, isWhitespaceChar}
 import utils.ScolException.{LexFail, ReaderFail}
@@ -46,11 +46,11 @@ object Lexer {
   }
 
   def helper1: Reader[List[Char], ((Char, Char), Char)] =
-    >>>(>>>(/+(lexCharWith(isDigit), "Invalid escape character - must be '\\', '\"' or ASCII code"),
-                    /+(lexCharWith(isDigit), "Missing escape code digits - must be 3 digits")),
-                        /+(lexCharWith(isDigit), "Missing escape code digit - must be 3 digits"))
+    (/+(lexCharWith(isDigit), "Invalid escape character - must be '\\', '\"' or ASCII code") >>>
+                    /+(lexCharWith(isDigit), "Missing escape code digits - must be 3 digits")) >>>
+                        /+(lexCharWith(isDigit), "Missing escape code digit - must be 3 digits")
 
-  def helper2: ((Char, Char), Char) => Char =
+  def helper2: (((Char, Char), Char)) => Char =
     (c1c2 : (Char, Char), c3 : Char) => {
     val (c1, c2) = c1c2 // open up the tuple
     val n : Integer = charImplode(List(c1, c2, c3)).toInt
@@ -65,13 +65,12 @@ object Lexer {
 
       // Punctuation
       def punctuationReader: Reader[List[Char], Token] = {
-        @:[List[Char], Char, Token](
-        (c : Char) => {
+        @:((c : Char) => {
           if (dfx || vmrk != NoMark)
             throw LexFail(s"Cannot mark reserved word '$c'")
           else
             ReswordTok(c.toString)
-        },  lexCharWith(isPunctuationChar))
+        }, lexCharWith(isPunctuationChar))
       }
 
       // Alphanumeric
@@ -88,7 +87,7 @@ object Lexer {
           else
             IdentTok(dfx, vmrk, x)
         },
-            (lexCharWith(isAlphanumChar1) >>> lexList(0, lexCharWith(isAlphanumChar2))))
+            lexCharWith(isAlphanumChar1) >>> lexList(0, lexCharWith(isAlphanumChar2)))
       }
 
     // Numeric
@@ -104,8 +103,7 @@ object Lexer {
 
             else NumericTok(dfx, vmrk ,x)
           },
-          >>>[List[Char], Char, List[Char]]
-            (lexCharWith(isDigit), lexList(0, lexCharWith(isAlphanumChar2))))
+            lexCharWith(isDigit) >>> lexList(0, lexCharWith(isAlphanumChar2)))
       }
 
     // Symbolic
@@ -125,28 +123,27 @@ object Lexer {
 
       }
 
-      // Quote (You need to implement this)
+      // Quote
+      val List1 = List('\\', '"')
+      val List2 = List('"')
+      val List3 = List('\\')
       def quoteReader: Reader[List[Char], Token] = {
         @:(
           (cs : List[Char]) => {
             val x = cs.mkString
             IdentTok(dfx, vmrk, x)
           },
-          >>*(*>>(lexCharIn(List('"')),
+          lexCharIn(List2) *>>
             lexList(0,
-              |||(lexCharNotIn(List('\\', '"'),
-                *>>(lexCharIn(List('\\')),
-                  |||(lexCharIn(List('\\', '"'),
-                    @:(helper2,
-                      helper1)))))))),
-                    /+[Char](lexCharIn(List('"')), "Missing closing \"")))
+              (lexCharNotIn(List1) |||
+                lexCharIn(List3) *>>
+                  (lexCharIn(List1) |||
+                    @:(helper2, helper1))
+            ) >>* /+(lexCharIn(List2), "Missing closing '\"'")))
       }
 
 
-      |||(punctuationReader ,
-          |||(alphanumReader,
-            |||(numericReader,
-            |||(symbolicReader, quoteReader))))
+      punctuationReader ||| alphanumReader |||numericReader ||| symbolicReader ||| quoteReader
   }
 
   private val lexToken: Reader[List[Char], Token] = lexToken0(false, NoMark)
@@ -156,11 +153,13 @@ object Lexer {
 
   def lex(src: List[Char]): List[Token] = {
     try {
-      val (tokens, _) = >>*[List[Char], List[Token], Unit](lexList(0, >>*(lexToken ,lexWhitespace)), lexEnd)(src)
+      val (tokens, _) = (lexList(0, lexToken >>* lexWhitespace) >>* lexEnd)(src)
       tokens
     } catch {
       case _: ReaderFail => throw LexFail("Undiagnosed lexical error")
     }
   }
 
+
+  def test[A, B](r1 : Reader[A, B], r2 : Reader[A, B]) : Reader[A, B] = r1 ||| r2
 }
