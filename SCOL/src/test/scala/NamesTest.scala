@@ -1,4 +1,4 @@
-import Names.*
+import main.scala.Names.*
 import org.scalatest.funsuite.AnyFunSuite
 import utils.ScolException.ScolFail
 

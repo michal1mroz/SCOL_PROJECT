@@ -1,5 +1,6 @@
+import main.scala.Type
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers._
+import org.scalatest.matchers.should.Matchers.*
 
 class TypeTest extends AnyFlatSpec {
 

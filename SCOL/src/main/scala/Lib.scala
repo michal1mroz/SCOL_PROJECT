@@ -344,7 +344,7 @@ object Lib {
 
   def setify_[A](eq: A => A => Boolean, l: List[A]): List[A] = l.foldLeft(List.empty[A])((acc, x) => insert_Curried_(eq)(acc, x)).reverse
 
-  def union[A](l1: List[A], l2: List[A]): List[A] = l2.foldRight(l1)((elem, acc) => insert(elem, acc))
+  def union[A](l1: List[A], l2: List[A]): List[A] = (l1 ++ l2).distinct
   // This works a little bit different than original since it kills all the duplicates in a list
   // You can think of it as a legitimate union of 2 sets
   // not sure if is ok for our purposes
@@ -358,9 +358,7 @@ object Lib {
 
   def union_Curried[A](eq: A => A => Boolean)(l1: List[A], l2: List[A]): List[A] = union_(eq, l2, l2)
 
-  def unions[A](ls: List[List[A]]): List[A] = ls match
-    case Nil => Nil
-    case _ => foldl1(curry_(union[A]))(ls)
+  def unions[A](ls: List[List[A]]): List[A] = ls.flatten.distinct
 
   // fixme not sure if it works correctly or not
   def unions_[A](eq: A => A => Boolean, ls: List[List[A]]): List[A] = ls match

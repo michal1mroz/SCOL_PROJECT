@@ -34,12 +34,12 @@ object Names {
     asciiCode < 32 | asciiCode > 126
   }
 
-  def isLowercase(c: Char) : Boolean = c  >= 'a' && c <= 'z'
-  def isUppercase(c: Char) : Boolean = c  >= 'A' && c <= 'Z'
+  def isLowercase(c: Char) : Boolean = c.isLower
+  def isUppercase(c: Char) : Boolean = c.isUpper
 
   def isLetter(c : Char) : Boolean = isLowercase(c) || isUppercase(c)
 
-  def isDigit(c : Char) : Boolean = c >= '0' || c <= '9'
+  def isDigit(c : Char) : Boolean = c.isDigit
 
   def isAlphanumChar1(c : Char) : Boolean = isLetter(c) || c == '_'
   def isAlphanumChar2(c : Char) : Boolean = isLetter(c) || isDigit(c) || c == '_' || c == '\''
@@ -52,7 +52,7 @@ object Names {
   }
 
   def isNumeric(s : String): Boolean = {
-    val cs = s.toList
+    val cs: List[Char] = s.toList
     cs match
       case c1 :: cs2 => isDigit(c1) && cs2.forall((c) => isDigit(c) || c == '_')
       case Nil => false

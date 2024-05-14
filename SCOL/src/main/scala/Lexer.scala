@@ -3,7 +3,7 @@ import Lexer.{/+, lexCharWith}
 import scala.util.{Failure, Success, Try}
 import Reader.*
 import main.scala.Lib.{charImplode, intOfString}
-import main.scala.Names.{isAlphanumChar1, isAlphanumChar2, isDigit, isEnumBracket, isKeyword, isNumeric, isPunctuationChar, isSymbolicChar, isWhitespaceChar}
+import main.scala.Names.{isAlphanumChar1, isAlphanumChar2, isDigit, isEnumBracket, isKeyword, isNumeric, isPunctuationChar, isSymbolicChar, isUnprintableChar, isWhitespaceChar}
 import utils.ScolException.{LexFail, ReaderFail}
 
 import scala.annotation.targetName
@@ -15,7 +15,7 @@ object Lexer {
   private def lexCharWith = readElemWith[Char]
   private def lexCharIn = readElemIn[Char]
   private def lexCharNotIn = readElemNotIn[Char]
-  private def lexList[A] = readList[List[Char], A]
+  def lexList[A] = readList[List[Char], A]
   private def lexEnd = readEnd[Char]
 
 
@@ -45,12 +45,12 @@ object Lexer {
     case ReswordTok(x) => x
   }
 
-  def helper1: Reader[List[Char], ((Char, Char), Char)] =
+  private def helper1: Reader[List[Char], ((Char, Char), Char)] =
     (/+(lexCharWith(isDigit), "Invalid escape character - must be '\\', '\"' or ASCII code") >>>
                     /+(lexCharWith(isDigit), "Missing escape code digits - must be 3 digits")) >>>
                         /+(lexCharWith(isDigit), "Missing escape code digit - must be 3 digits")
 
-  def helper2: (((Char, Char), Char)) => Char =
+  private def helper2: (((Char, Char), Char)) => Char =
     (c1c2 : (Char, Char), c3 : Char) => {
     val (c1, c2) = c1c2 // open up the tuple
     val n : Integer = charImplode(List(c1, c2, c3)).toInt
@@ -93,16 +93,14 @@ object Lexer {
     // Numeric
       def numericReader: Reader[List[Char], Token] = {
         @:[List[Char], (Char, List[Char]), Token](
-          (c: Char, cs: List[Char]) => {
+          ((c: Char, cs: List[Char]) => {
             val x = (c :: cs).mkString
             if (!isNumeric(x))
               throw LexFail(s"Non numeric character $c in numeric token $x")
-
             else if (vmrk == TmvarMark)
               throw LexFail("Cannot mark numeric with '%'")
-
             else NumericTok(dfx, vmrk ,x)
-          },
+          }),
             lexCharWith(isDigit) >>> lexList(0, lexCharWith(isAlphanumChar2)))
       }
 
@@ -120,15 +118,14 @@ object Lexer {
               IdentTok(dfx, vmrk, x)
           },
           lexList(1, lexCharWith(isSymbolicChar)))
-
       }
 
       // Quote
-      val List1 = List('\\', '"')
-      val List2 = List('"')
-      val List3 = List('\\')
       def quoteReader: Reader[List[Char], Token] = {
-        @:(
+        val List1 = List('\\', '"')
+        val List2 = List('"')
+        val List3 = List('\\')
+        @:[List[Char], List[Char], Token](
           (cs : List[Char]) => {
             val x = cs.mkString
             IdentTok(dfx, vmrk, x)
@@ -136,30 +133,71 @@ object Lexer {
           lexCharIn(List2) *>>
             lexList(0,
               (lexCharNotIn(List1) |||
-                lexCharIn(List3) *>>
-                  (lexCharIn(List1) |||
-                    @:(helper2, helper1))
-            ) >>* /+(lexCharIn(List2), "Missing closing '\"'")))
+                (lexCharIn(List3) *>> lexCharIn(List1) ) |||
+                (@:(helper2, helper1)))
+            ) >>*
+            /+(lexCharIn(List2), "Missing closing '\"'"))
       }
 
 
-      punctuationReader ||| alphanumReader |||numericReader ||| symbolicReader ||| quoteReader
+      // defix
+      def defixReader : Reader[List[Char], Token] = {
+        lexCharIn(List('$')) *>>
+          (if (vmrk != NoMark)
+            throw LexFail("Defixifing mark ($) must precede any var mark (' or %) in token")
+          else if (dfx)
+            throw LexFail("Defixing mark ($) cannot be repeated in token")
+          else
+            lexToken0(true, vmrk))
+      }
+
+
+      // term/type var mark
+
+      def ttVarmark : Reader[List[Char], Token] = {
+        lexCharIn(List('\'', '%')) *@>
+          ((c : Char) => {
+          if(vmrk != NoMark)
+            throw LexFail("Cannot have more than one var mark (' or %) in token")
+          else
+            val vmrk1 = if c == '%' then TmvarMark else TyvarMark
+            lexToken0(dfx, vmrk1)
+        })
+      }
+
+      def remainingErrs : Reader[List[Char], Token] = {
+          if (dfx)
+            throw LexFail("Defix mark ($) must immidiatly precede name, without space")
+          else if (vmrk != NoMark)
+            throw LexFail("Var marks (' or %) must immediately precede name, without space")
+
+          else
+            lexCharWith(
+              (c : Char) => {
+                isUnprintableChar(c) && !isWhitespaceChar(c)
+              }
+            ) *@>
+              ((c : Char) => {
+                val n = c.toInt
+                throw LexFail(s"Unprintable ASCII character $c - use ASCII escape code inside quotes")
+          })
+      }
+
+//    (((((((punctuationReader ||| alphanumReader) |||numericReader) ||| symbolicReader) ||| quoteReader) ||| defixReader) ||| ttVarmark) ||| remainingErrs)
+      punctuationReader ||| alphanumReader ||| numericReader ||| symbolicReader ||| ttVarmark
   }
 
-  private val lexToken: Reader[List[Char], Token] = lexToken0(false, NoMark)
+  def lexToken: Reader[List[Char], Token] = lexToken0(false, NoMark)
 
 
-  private val lexWhitespace: Reader[List[Char], List[Char]] = lexList(0, lexCharWith(isWhitespaceChar))
+  def lexWhitespace: Reader[List[Char], List[Char]] = lexList(0, lexCharWith(isWhitespaceChar))
 
   def lex(src: List[Char]): List[Token] = {
-    try {
+//    try {
       val (tokens, _) = (lexList(0, lexToken >>* lexWhitespace) >>* lexEnd)(src)
       tokens
-    } catch {
-      case _: ReaderFail => throw LexFail("Undiagnosed lexical error")
-    }
+//    } catch {
+//      case _: ReaderFail => throw LexFail("Undiagnosed lexical error")
+//    }
   }
-
-
-  def test[A, B](r1 : Reader[A, B], r2 : Reader[A, B]) : Reader[A, B] = r1 ||| r2
 }

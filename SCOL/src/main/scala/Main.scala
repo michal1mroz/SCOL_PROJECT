@@ -1,10 +1,11 @@
-package main.scala
-import Lib.*
+import main.scala.Names.isNumeric
 
-import scala.annotation.showAsInfix
 
 @main
-def main(): Unit = {
+def mAin(): Unit = {
     println("Hello world!")
     // Use the custom infix function
+    println(isNumeric("!#!#!#".toList.mkString))
+    println("!#!#!#".toList.mkString)
+    println('!'.isLower)
 }
