@@ -1,5 +1,5 @@
 import Preterm.*
-import main.scala.Names.{Infix, LeftAssoc, setTypeFixity}
+import main.scala.Names.{AssocHand, Infix, LeftAssoc, NonAssoc, RightAssoc, setTypeFixity}
 import main.scala.Type.{HolType, Tycomp, Tyvar}
 import org.scalatest.funsuite.AnyFunSuite
 import utils.ScolException.ScolFail
@@ -156,6 +156,61 @@ class PretermTest extends AnyFunSuite {
     val (absList, lastPtm): (List[Preterm], Preterm) = stripAbsPreterm(ptm)
     assert(absList == List(p1, p2, p3))
     assert(lastPtm == Ptmvar("x", Ptygvar(0)))
+  }
+
+  // Sample Preterm instances
+  val ptm1: Preterm = Ptmvar("x", Ptyvar("0"))
+  val ptm2: Preterm = Ptmvar("y", Ptyvar("0"))
+  val ptm3: Preterm = Ptmconst("const1", Ptyvar("0"))
+  val ptm4: Preterm = Ptmconst("const2", Ptyvar("0"))
+  val ptm5: Preterm = Ptmtyped(ptm1, Ptyvar("0"))
+  val ptm6: Preterm = Ptmtyped(ptm3, Ptyvar("0"))
+  val f: Preterm = Ptmconst("f", Ptyvar("0"))
+  val ptms: List[Preterm] = List(ptm1, ptm2, ptm3, ptm4)
+
+  test("atomPretermName should return the correct names for different preterms") {
+    assert(atomPretermName(ptm1) === "x")
+    assert(atomPretermName(ptm2) === "y")
+    assert(atomPretermName(ptm3) === "const1")
+    assert(atomPretermName(ptm4) === "const2")
+    assert(atomPretermName(ptm5) === "x")
+    assert(atomPretermName(ptm6) === "const1")
+  }
+
+  test("sameAtomPreterm should correctly determine if two preterms are the same atom") {
+    assert(!sameAtomPreterm(ptm1, ptm2))
+    assert(sameAtomPreterm(ptm1, ptm5))
+    assert(sameAtomPreterm(ptm3, ptm6))
+    assert(!sameAtomPreterm(ptm1, ptm3))
+  }
+
+  test("listMkBinPreterm should correctly create binary preterms with different associativity") {
+    val leftAssocResult = listMkBinPreterm(LeftAssoc, f, ptms)
+    assert(leftAssocResult === Ptmcomb(Ptmcomb(Ptmcomb(f, ptm1), ptm2), Ptmcomb(Ptmconst("const1", Ptyvar("0")), Ptmconst("const2", Ptyvar("0")))))
+
+    val rightAssocResult = listMkBinPreterm(RightAssoc, f, ptms)
+    assert(rightAssocResult === Ptmcomb(Ptmconst("f", Ptyvar("0")), Ptmcomb(Ptmcomb(ptm1, ptm2), Ptmcomb(Ptmconst("const1", Ptyvar("0")), Ptmconst("const2", Ptyvar("0"))))))
+
+    val nonAssocResult = listMkBinPreterm(NonAssoc, f, List(ptm1, ptm2))
+    assert(nonAssocResult === Ptmcomb(Ptmcomb(f, ptm1), ptm2))
+  }
+
+  test("destBinPreterm should correctly destructure binary preterms") {
+    val (fResult, ptm1Result, ptm2Result) = destBinPreterm(leftAssocResult)
+    assert(fResult === f)
+    assert(ptm1Result === ptm1)
+    assert(ptm2Result === ptm2)
+  }
+
+  test("stripBinPreterm should correctly strip binary preterms with different associativity") {
+    val stripLeftAssocResult = stripBinPreterm(LeftAssoc, f, leftAssocResult)
+    assert(stripLeftAssocResult === List(ptm1, ptm2, Ptmconst("const1", Ptyvar("0")), Ptmconst("const2", Ptyvar("0"))))
+
+    val stripRightAssocResult = stripBinPreterm(RightAssoc, f, rightAssocResult)
+    assert(stripRightAssocResult === List(f, Ptmcomb(ptm1, ptm2), Ptmcomb(Ptmconst("const1", Ptyvar("0")), Ptmconst("const2", Ptyvar("0")))))
+
+    val stripNonAssocResult = stripBinPreterm(NonAssoc, f, nonAssocResult)
+    assert(stripNonAssocResult === List(ptm1, ptm2))
   }
 
 }
