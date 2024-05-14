@@ -10,7 +10,7 @@ object Preterm {
 
   case class Ptyvar(name: String) extends Pretype
 
-  case class Ptygvar(name: String) extends Pretype
+  case class Ptygvar(n: Int) extends Pretype
 
   case class Ptycomp(name: String, preterms: List[Pretype]) extends Pretype
 
@@ -20,15 +20,9 @@ object Preterm {
     case _ => throw ScolFail("Couldn't destroy type variable: Not a type variable")
   }
 
-  def destTygvarPretype(p: Pretype): String = p match {
+  def destTygvarPretype(p: Pretype): Int = p match {
     case Ptygvar(name) => name
     case _ => throw ScolFail("Couldn't destroy generated type variable: Not a generated type variable")
-  }
-
-  def destPretype(p: Pretype): String = p match {
-    case Ptyvar(name) => name
-    case Ptygvar(name) => name
-    case _ => throw ScolFail("Couldn't destroy provided preterm: Not a Ptyvar or Ptygvar")
   }
 
   def isTygvarPretype(p: Pretype): Boolean = p match
@@ -145,14 +139,14 @@ object Preterm {
   case class Ptmtyped(term: Preterm, pretype: Pretype) extends Preterm
 
 
-  def mkNulltypeVarPreterm(x: String): Preterm = Ptmvar(x, Ptygvar("0"))
+  def mkNulltypeVarPreterm(x: String): Preterm = Ptmvar(x, Ptygvar(0))
 
   def destVarPreterm(ptm: Preterm): (String, Pretype) = ptm match {
     case Ptmvar(x, pty) => (x, pty)
     case _ => throw ScolFail("destVarPreterm: ?")
   }
 
-  def mkNulltypeConstPreterm(x: String): Preterm = Ptmconst(x, Ptygvar("0"))
+  def mkNulltypeConstPreterm(x: String): Preterm = Ptmconst(x, Ptygvar(0))
 
   def constPretermName(ptm: Preterm): String = ptm match {
     case Ptmconst(x, _) => x
