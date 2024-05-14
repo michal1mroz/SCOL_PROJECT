@@ -1,4 +1,4 @@
-import main.scala.Lib.{assoc, unions}
+import main.scala.Lib.{assoc, unfoldl, unfoldr, unions}
 import main.scala.Names.{AssocHand, LeftAssoc, NonAssoc, RightAssoc, getInfixTypeInfo, hasInfixTypeFixity}
 import main.scala.Type.{HolType, Tycomp, Tyvar, mkVarType}
 import main.scala.Utils1.{TypeCompDestructed, TypeVarDestructed, destType}
@@ -135,4 +135,54 @@ object Preterm {
     case Ptyvar(_) | Ptygvar(_) => 1
     case Ptycomp(_, ptys) => 1 + ptys.map(pretypeComplexity).sum
   }
-}
+
+  sealed trait Preterm
+
+  case class Ptmvar(name: String, pretype: Pretype) extends Preterm
+  case class Ptmconst(name: String, pretype: Pretype) extends Preterm
+  case class Ptmcomb(term1: Preterm, term2: Preterm) extends Preterm
+  case class Ptmabs(param: Preterm, body: Preterm) extends Preterm
+  case class Ptmtyped(term: Preterm, pretype: Pretype) extends Preterm
+
+
+  def mkNulltypeVarPreterm(x: String): Preterm = Ptmvar(x, Ptygvar("0"))
+
+  def destVarPreterm(ptm: Preterm): (String, Pretype) = ptm match {
+    case Ptmvar(x, pty) => (x, pty)
+    case _ => throw ScolFail("destVarPreterm: ?")
+  }
+
+  def mkNulltypeConstPreterm(x: String): Preterm = Ptmconst(x, Ptygvar("0"))
+
+  def constPretermName(ptm: Preterm): String = ptm match {
+    case Ptmconst(x, _) => x
+    case _ => throw ScolFail("constPretermName: ?")
+  }
+
+
+  // Function application
+  def mkCombPreterm(f: Preterm, ptm: Preterm): Preterm = Ptmcomb(f, ptm)
+
+  def listMkCombPreterm(f: Preterm, ptms: List[Preterm]): Preterm =
+    ptms.foldLeft(f)(mkCombPreterm)
+
+  def destCombPreterm(ptm: Preterm): (Preterm, Preterm) = ptm match {
+    case Ptmcomb(ptm1, ptm2) => (ptm1, ptm2)
+    case _                   => throw ScolFail("destCombPreterm: ?")
+  }
+
+  def stripCombPreterm(ptm: Preterm): (List[Preterm], Preterm) =
+    unfoldl(destCombPreterm, ptm)
+
+  // Lambda abstractions
+  def listMkAbsPreterm(vs: List[Preterm], ptm0: Preterm): Preterm =
+    vs.foldRight(ptm0)((v, ptm) => Ptmabs(v, ptm))
+
+  def destAbsPreterm(ptm: Preterm): (Preterm, Preterm) = ptm match {
+    case Ptmabs(v, ptm0) => (v, ptm0)
+    case _               => throw new Exception("destAbsPreterm: ?")
+  }
+
+  def stripAbsPreterm(ptm: Preterm): (List[Preterm], Preterm) =
+    unfoldr(destAbsPreterm, ptm)
+  }

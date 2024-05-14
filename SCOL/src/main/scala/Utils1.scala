@@ -268,7 +268,7 @@ object Utils1 {
   }
 
   def stripExists(tm: Term): (Term, List[Term]) = {
-    unfoldl(doesExists, tm)
+    unfoldl(doesExists, tm).swap
   }
 
   def isExists(tm: Term): Boolean = {

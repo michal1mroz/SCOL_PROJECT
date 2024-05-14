@@ -2,6 +2,7 @@ package main.scala
 import utils.ScolException.ScolFail
 
 import java.math.BigInteger
+import scala.::
 import scala.annotation.tailrec
 
 object Lib {
@@ -245,29 +246,29 @@ object Lib {
   }
 
   // Define the unfoldl function
-  def unfoldl[A, B](dest_fn: A => (A, B), x: A): (A, List[B]) = unfoldl0(dest_fn, x, Nil)
+  def unfoldl[A, B](dest_fn: A => (A, B), x: A): (List[B], A) = unfoldl0(dest_fn, x, Nil).swap
 
   def unfoldl1[A](dest_fn: A => (A, A), x: A): List[A] = {
-    val (x1, xs) = unfoldl(dest_fn, x)
+    val (xs, x1) = unfoldl(dest_fn, x)
     x1 :: xs
   }
 
-  def  unfoldr0[A, B](dest_fn: B => (A, B), x: B, xs:List[A]): (B, List[A]) = {
+  def  unfoldr0[A, B](dest_fn: B => (A, B), x: B, xs:List[A]): (List[A], B) = {
     try{
       val (x1, x2) = dest_fn(x)
       unfoldr0(dest_fn, x2, x1::xs)
     } catch{
-      case _: ScolFail => (x, xs.reverse)
+      case _: ScolFail => (x, xs.reverse).swap
     }
   }
 
-  def unfoldr[A, B](dest_fn: B => (A ,B), x: B): (B, List[A]) = {
-    val (x1, xs) = unfoldr0(dest_fn, x, List.empty)
-    (x1, xs.reverse)
+  def unfoldr[A, B](dest_fn: B => (A ,B), x: B): (List[A], B) = {
+    val (xs, x1) = unfoldr0(dest_fn, x, List.empty)
+    (x1, xs.reverse).swap
   }
 
   def unfoldr1[A](dest_fn: A => (A, A), x: A): List[A] = {
-    val (x1, xs) = unfoldr0(dest_fn, x, List.empty)
+    val (xs, x1) = unfoldr0(dest_fn, x, List.empty)
     (x1::xs).reverse
   }
 
