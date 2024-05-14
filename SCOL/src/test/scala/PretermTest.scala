@@ -100,4 +100,26 @@ class PretermTest extends AnyFunSuite {
     assert(pretypeTyvars(pty3) == List.empty)
     assert(pretypeTyvars(pty4) === List(pty1, pty2, pty5))
   }
+
+  test("Test pretypeInst") {
+    // Define a substitution list theta
+    val theta: List[(Pretype, Pretype)] = List(
+      (Ptyvar("a"), Ptygvar("b")), // Substituting Ptyvar("a") with Ptygvar("b")
+      (Ptyvar("c"), Ptyvar("d")) // Substituting Ptyvar("c") with Ptyvar("d")
+    )
+
+    assert(pretypeInst(theta, Ptyvar("a")) === Ptygvar("b")) // Substitute Ptyvar("a") with Ptygvar("b")
+    assert(pretypeInst(theta, Ptyvar("c")) === Ptyvar("d")) // Substitute Ptyvar("c") with Ptyvar("d")
+    assert(pretypeInst(theta, Ptyvar("x")) === Ptyvar("x")) // No substitution for Ptyvar("x")
+
+  }
+
+  test("Test pretype_complexity") {
+    // Test cases for pretype_complexity
+    assert(pretypeComplexity(Ptyvar("a")) === 1) // Complexity of Ptyvar("a") is 1
+    assert(pretypeComplexity(Ptycomp("list", List(Ptyvar("a")))) === 2) // Complexity of Ptycomp("list", List(Ptyvar("a"))) is 2
+    assert(pretypeComplexity(Ptygvar("b")) === 1) // Complexity of Ptygvar("b") is 1
+    assert(pretypeComplexity(Ptycomp("tuple", List(Ptygvar("b")))) === 2) // Complexity of Ptycomp("tuple", List(Ptygvar("b"))) is 2
+    assert(pretypeComplexity(Ptycomp("triple", List(Ptygvar("b"), Ptyvar("scscs")))) === 3)
+  }
 }

@@ -299,7 +299,7 @@ object Lib {
     case (x0, y0) :: xys0 =>
       if (x == x0) y0
       else assoc(x, xys0)
-    case Nil => throw new NoSuchElementException("assoc: No match")
+    case Nil => throw ScolFail("assoc: No match")
   }
 
   // Define the inv_assoc function

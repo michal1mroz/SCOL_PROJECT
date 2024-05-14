@@ -102,16 +102,13 @@ object Preterm {
   def pretypeTyvars(pty: Pretype): List[Pretype] = pty match {
     case Ptyvar(_) => List(pty)
     case Ptygvar(_) => List.empty
-    case Ptycomp(_, ptys) =>
-      println(ptys)
-      println(ptys.map(pretypeTyvars))
-      unions(ptys.map(pretypeTyvars) : List[List[Pretype]])
+    case Ptycomp(_, ptys) => unions(ptys.map(pretypeTyvars))
   }
 
   def pretypeGtyvars(pty: Pretype): List[Pretype] = pty match {
     case Ptyvar(_) => List.empty
     case Ptygvar(_) => List(pty)
-    case Ptycomp(_, ptys) => ptys.flatMap(pretypeGtyvars)
+    case Ptycomp(_, ptys) => unions(ptys.map(pretypeGtyvars))
   }
 
   def pretypeHasGtyvars(pty: Pretype): Boolean = pty match {
@@ -122,10 +119,15 @@ object Preterm {
 
   // Instantiating pretypes
   def pretypeInst(theta: List[(Pretype, Pretype)], pty: Pretype): Pretype = pty match {
-    case Ptyvar(_) | Ptygvar(_) => theta.find(_._1 == pty).map(_._2).getOrElse(pty)
+    case Ptyvar(_) | Ptygvar(_) => 
+      try
+        assoc(pty, theta)
+      catch 
+        case e : ScolFail => pty
+
     case Ptycomp(x, ptys) =>
       val ptysPrime = ptys.map(pretypeInst(theta, _))
-      if (ptysPrime == ptys) pty else Ptycomp(x, ptysPrime)
+      if (ptys == ptys) pty else Ptycomp(x, ptysPrime)
   }
 
   // Pretype complexity
