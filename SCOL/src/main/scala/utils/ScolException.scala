@@ -11,6 +11,7 @@ object ScolException extends Exception{
   case class LexFail(msg: String) extends RuntimeException(s"[SC] LexFail: $msg")
   case class NatLocalFail() extends RuntimeException(s"[SC] NatLocalFail")
   case class EnumLocalFail() extends RuntimeException(s"[SC] EnumLocalFail")
+  case class LocalFail() extends RuntimeException(s"[SC] LocalFail")
 
   /* fixme throw an exception probably should just stick to `throw ScolFail(func, msg)`*/
   def scolFail(msg: String): Nothing = throw ScolFail(msg)

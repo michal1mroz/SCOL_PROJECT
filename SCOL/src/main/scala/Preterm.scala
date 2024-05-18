@@ -1,8 +1,9 @@
-import main.scala.Lib.{assoc, can, foldl1, foldr1, frontLast, reverseTail, unfold, unfold1, unfoldl, unfoldl1, unfoldlAlter, unfoldr, unfoldr1, unfoldrAlter, unions}
-import main.scala.Names.{AssocHand, LeftAssoc, NonAssoc, RightAssoc, getEnumBracketZero, getEnumZeroBrackets, getEnumZeroOp, getInfixTypeInfo, hasInfixTypeFixity}
+import main.scala.Lib.{assoc, can, foldl1, foldr1, frontLast, reverseTail, unfold, unfold1, unfoldl, unfoldl1, unfoldlAlter, unfoldr, unfoldr1, unfoldrAlter, union, unions}
+import main.scala.Names.{AssocHand, LeftAssoc, NonAssoc, RightAssoc, getEnumBracketZero, getEnumZeroBrackets, getEnumZeroOp, getInfixInfo, getInfixTypeInfo, hasBinderFixity, hasInfixFixity, hasInfixTypeFixity, hasPostfixFixity, hasPrefixFixity}
+import main.scala.Term.{Term, Tmvar, Tmabs, Tmcomb, Tmconst}
 import main.scala.Type.{HolType, Tycomp, Tyvar, mkVarType}
 import main.scala.Utils1.{TypeCompDestructed, TypeVarDestructed, destType}
-import utils.ScolException.{EnumLocalFail, NatLocalFail, ScolFail, assertScol, scolFail, try0}
+import utils.ScolException.{EnumLocalFail, LocalFail, NatLocalFail, ScolFail, assertScol, scolFail, try0}
 
 import scala.annotation.tailrec
 
@@ -403,6 +404,145 @@ object Preterm {
     } catch {
       case _ : ScolFail => false
     }
+  }
+
+
+  def stripInfixPreterm(ptm: Preterm): (Preterm, List[Preterm]) = {
+    val (f, ptm1, ptm2) = destBinPreterm(ptm)
+    val x = atomPretermName(f)
+    val (n, h) = getInfixInfo(x)
+    val ptms = stripBinPreterm(h, f, ptm)
+    (f, ptms)
+  }
+
+  def isPrefixPreterm(ptm: Preterm): Boolean = {
+    try {
+      val (f, _) = destCombPreterm(ptm)
+      val x = atomPretermName(f)
+      hasPrefixFixity(x)
+    } catch {
+      case _: ScolFail => false
+    }
+  }
+
+  def isInfixPreterm(ptm: Preterm): Boolean = {
+    try {
+      val (f, _, _) = destBinPreterm(ptm)
+      val x = atomPretermName(f)
+      hasInfixFixity(x)
+    } catch {
+      case _: ScolFail => false
+    }
+  }
+
+  def isPostfixPreterm(ptm: Preterm): Boolean = {
+    try {
+      val (f, _) = destCombPreterm(ptm)
+      val x = atomPretermName(f)
+      hasPostfixFixity(x)
+    } catch {
+      case _: ScolFail => false
+    }
+  }
+
+  def mkBinderPreterm(f: Preterm, v: Preterm, ptm0: Preterm): Preterm = {
+    Ptmcomb(f, Ptmabs(v, ptm0))
+  }
+
+
+  //fixme important to test this one
+  def listMkBinderPreterm(f: Preterm, vs: List[Preterm], ptm0: Preterm): Preterm = {
+    vs.foldRight(ptm0)((v, ptm) => mkBinderPreterm(f, v, ptm))
+  }
+
+  def destBinderPreterm(ptm: Preterm): (Preterm, Preterm, Preterm) = {
+    val (f, ptm1) = destCombPreterm(ptm)
+    val x = atomPretermName(f)
+    assertScol(hasBinderFixity(x), "destBinderPreterm : ?")
+    val (v, ptm0) = destAbsPreterm(ptm1)
+    (f, v, ptm0)
+  }
+
+  def stripBinderPreterm0(f0: Preterm, ptm: Preterm): (List[Preterm], Preterm) = {
+    try {
+      val (f, v, ptm0) = destBinderPreterm(ptm)
+      assertScol(sameAtomPreterm(f0, f), "stripBinderPreterm0 : ?")
+      val (vs, ptm00) = stripBinderPreterm0(f0, ptm0)
+      (v :: vs, ptm00)
+    } catch {
+      case _: ScolFail | _: LocalFail => (Nil, ptm)
+    }
+  }
+
+  def stripBinderPreterm(ptm: Preterm): (Preterm, List[Preterm], Preterm) = {
+    val (f, v, ptm0) = destBinderPreterm(ptm)
+    val (vs, ptm1) = stripBinderPreterm0(f, ptm0)
+    (f, v :: vs, ptm1)
+  }
+
+  def isBinderPreterm(ptm: Preterm): Boolean = {
+    try {
+      destBinderPreterm(ptm)
+      true
+    } catch
+      case _ : ScolFail => false
+  }
+
+  def termToPreterm(tm: Term): Preterm = tm match {
+    case Tmvar(x, ty) =>
+      val tyPrime = typeToPretype(ty)
+      Ptmvar(x, tyPrime)
+    case Tmconst(x, ty) =>
+      val pty = typeToPretype(ty)
+      val xPrime = if (x == "=" && pty == boolBinPty) "<=>" else x
+      Ptmconst(xPrime, pty)
+    case Tmcomb(tm1, tm2) =>
+      val ptm1 = termToPreterm(tm1)
+      val ptm2 = termToPreterm(tm2)
+      Ptmcomb(ptm1, ptm2)
+    case Tmabs(v, tm0) =>
+      val pv = termToPreterm(v)
+      val ptm0 = termToPreterm(tm0)
+      Ptmabs(pv, ptm0)
+  }
+
+  // Listing functions
+
+  def pretermTyvars(ptm: Preterm): List[Pretype] = ptm match {
+    case Ptmvar(x, pty) =>
+      pretypeTyvars(pty)
+    case Ptmconst(x, pty) =>
+      pretypeTyvars(pty)
+    case Ptmcomb(ptm1, ptm2) =>
+      union(pretermTyvars(ptm1), pretermTyvars(ptm2))
+    case Ptmabs(ptm1, ptm2) =>
+      union(pretermTyvars(ptm1), pretermTyvars(ptm2))
+    case Ptmtyped(ptm0, pty) =>
+      union(pretermTyvars(ptm0), pretypeTyvars(pty))
+  }
+
+  def pretermGtyvars(ptm: Preterm): List[Pretype] = ptm match {
+    case Ptmvar(x, pty) =>
+      pretypeGtyvars(pty)
+    case Ptmconst(x, pty) =>
+      pretypeGtyvars(pty)
+    case Ptmcomb(ptm1, ptm2) =>
+      union(pretermGtyvars(ptm1), pretermGtyvars(ptm2))
+    case Ptmabs(ptm1, ptm2) =>
+      union(pretermGtyvars(ptm1), pretermGtyvars(ptm2))
+    case Ptmtyped(ptm0, pty) =>
+      union(pretermGtyvars(ptm0), pretypeGtyvars(pty))
+  }
+
+  def pretermHasGtyvars(ptm: Preterm): Boolean = ptm match {
+    case Ptmvar(_, pty)  => pretypeHasGtyvars(pty)
+    case  Ptmconst(_, pty) => pretypeHasGtyvars(pty)
+    case Ptmcomb(ptm1, ptm2)  =>
+      pretermHasGtyvars(ptm1) || pretermHasGtyvars(ptm2)
+    case  Ptmabs(ptm1, ptm2) =>
+      pretermHasGtyvars(ptm1) || pretermHasGtyvars(ptm2)
+    case Ptmtyped(ptm0, _) =>
+      pretermHasGtyvars(ptm0)
   }
 
 
