@@ -2,7 +2,7 @@ import main.scala.Lib.{assoc, can, foldl1, foldr1, reverseTail, unfold, unfold1,
 import main.scala.Names.{AssocHand, LeftAssoc, NonAssoc, RightAssoc, getInfixTypeInfo, hasInfixTypeFixity}
 import main.scala.Type.{HolType, Tycomp, Tyvar, mkVarType}
 import main.scala.Utils1.{TypeCompDestructed, TypeVarDestructed, destType}
-import utils.ScolException.{ScolFail, assertScol, scolFail}
+import utils.ScolException.{NatLocalFail, ScolFail, assertScol, scolFail, try0}
 
 object Preterm {
 
@@ -294,7 +294,65 @@ object Preterm {
     try {
       destLetPreterm(ptm)
       true
-  }catch
-      case _ : ScolFail => false
+    } catch
+      case _: ScolFail => false
   }
+
+
+  val pairFn : Preterm = mkNulltypeConstPreterm("PAIR")
+
+  def mkPairPreterm(ptm1 : Preterm, ptm2 : Preterm) : Preterm = mkBinPreterm(pairFn, ptm1, ptm2)
+
+  def listMkPairPreterm(ptms : List[Preterm]) : Preterm = listMkBinPreterm(RightAssoc, pairFn, ptms)
+  def stripPairPreterm(ptm : Preterm) : List[Preterm] = stripBinPreterm(RightAssoc, pairFn, ptm)
+  def isPairPreterm(ptm : Preterm) : Boolean = {
+    try {
+      destBinPreterm0(pairFn, ptm)
+      true
+    }catch
+      case _: ScolFail => false
+  }
+
+
+  def numeralFn : Preterm = mkNulltypeConstPreterm("NUM")
+
+  private def mkNatPreterm0(n : Int) : Preterm = n match {
+    case n if n > 0 =>
+      val n0 = n / 2;
+      val ptmf = if n % 2 == 0 then mkNulltypeConstPreterm("BIT0") else mkNulltypeConstPreterm("BIT1")
+      val ptm0 = mkNatPreterm0(n0)
+      mkCombPreterm(ptmf, ptm0)
+
+    case 0 => mkNulltypeConstPreterm("ZERO")
+    case _ => throw ScolFail("mkNatPreterm: Received negative integer")
+  }
+
+  def mkNatPreterm(n : Int) : Preterm = mkCombPreterm(numeralFn, mkNatPreterm0(n))
+
+  private def destNatPreterm0(zok : Boolean, ptm : Preterm) : Int = {
+    try{
+      val (ptmf, ptm0) = try0(destCombPreterm, ptm, NatLocalFail())
+      val x = constPretermName(ptmf)
+      if (x == "BIT0") {
+        val n0 = destNatPreterm0(false, ptm0)
+        2 * n0
+      }else if (x == "BIT1") {
+        val n0 = destNatPreterm0(true, ptm0)
+        (2 * n0) + 1
+      }else
+        throw ScolFail("destNatPreterm0: improper preterm f name")
+    }
+    catch
+      case _ : NatLocalFail =>
+        val x = constPretermName(ptm)
+        assertScol((x == "ZERO") && zok, "Assert in destNatPreterm0 failed")
+        0
+  }
+
+  def destNatPreterm(ptm : Preterm) : Int = {
+    val (f, ptm0) = destCombPreterm(ptm)
+    assertScol(sameAtomPreterm(f, numeralFn), "destNatPreterm: wrong f signature")
+    destNatPreterm0(true, ptm0)
+  }
+
 }

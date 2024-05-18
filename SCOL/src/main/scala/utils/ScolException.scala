@@ -9,6 +9,7 @@ object ScolException extends Exception{
   case class ScolFail(msg: String) extends RuntimeException(s"[SC] FAIL: $msg")
   case class ReaderFail(msg: String) extends RuntimeException(s"[SC] ReaderFail: $msg")
   case class LexFail(msg: String) extends RuntimeException(s"[SC] LexFail: $msg")
+  case class NatLocalFail() extends RuntimeException(s"[SC] NatLocalFail")
 
   /* fixme throw an exception probably should just stick to `throw ScolFail(func, msg)`*/
   def scolFail(msg: String): Nothing = throw ScolFail(msg)
@@ -21,6 +22,12 @@ object ScolException extends Exception{
   def scolWarn(msg : String) : Unit = println("WARNING: " + msg)
   def scolReport(msg : String) : Unit = println("REPORT: " + msg)
   def assertScol(b : Boolean, msg : String): Unit = if !b then throw ScolFail(msg)
+  def try0[A, B](f : A => B, x : A, exn : Exception) : B = {
+    try {
+      f(x)
+    }catch
+      case _ : Throwable => throw exn
+  }
 
 
   def internalError(func: String): Nothing = scolError("INTERNAL ERROR", func)

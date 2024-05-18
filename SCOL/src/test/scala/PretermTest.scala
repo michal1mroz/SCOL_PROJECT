@@ -139,8 +139,9 @@ class PretermTest extends AnyFunSuite {
   }
 
   test("stripCombPreterm") {
-    println(p3)
-    val (combList, firstPtm): (List[Preterm], Preterm) = stripCombPreterm(p3)
+    val (firstPtm, combList) = stripCombPreterm(p3)
+    println(firstPtm)
+    println(combList)
     assert(firstPtm :: combList == List(p1, p2))
     assert(firstPtm == Ptmvar("x", Ptygvar(0)))
   }
@@ -206,7 +207,6 @@ class PretermTest extends AnyFunSuite {
   test("stripBinPreterm should correctly strip binary preterms with different associativity") {
     val leftAssocResult = listMkBinPreterm(LeftAssoc, f, ptms1)
     val rightAssocResult = listMkBinPreterm(RightAssoc, f, ptms1)
-    println(rightAssocResult)
     val res = ptms1
 
     val stripLeftAssocResult = stripBinPreterm(LeftAssoc, f, leftAssocResult)
