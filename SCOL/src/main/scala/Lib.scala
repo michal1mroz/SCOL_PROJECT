@@ -206,7 +206,11 @@ object Lib {
   }
 
   // foldl: Fold left operation on a list
-  def foldl[A, B](f: B => A => B)(a: B)(xs: List[A]): B = xs.foldLeft(a)(uncurry_(f))
+//  def foldl[A, B](f: B => A => B)(a: B)(xs: List[A]): B = xs.foldLeft(a)(uncurry_(f))
+  def foldl[A, B](f: B => A => B)(a: B)(xs: List[A]): B = xs match {
+    case Nil => a
+    case l :: ls => foldl(f)(f(a)(l))(ls)
+  }
 
   // foldl1: Fold left operation on a non-empty list
   def foldl1[A](f: A => A => A)(xs: List[A]): A = xs match {
@@ -219,9 +223,9 @@ object Lib {
 
   // foldr1: Fold right operation on a non-empty list
   def foldr1[A](f: A => A => A)(xs: List[A]): A = xs match {
-    case x :: Nil => x
-    case x1 :: xs2 => xs.foldRight(x1)(uncurry_(f))
     case Nil => throw new IllegalArgumentException("Empty list")
+    case x :: Nil => x
+    case x1 :: xs2 => f(x1)(foldr1(f)(xs2))
   }
 
   // foldl': Variant of foldl suited for uncurried binary functions
@@ -236,13 +240,24 @@ object Lib {
   // foldr1': Variant of foldr1 suited for uncurried binary functions
   def foldr1_[A](f: (A, A) => A)(xs: List[A]): A = foldr1(curry(f))(xs)
 
-  def unfoldl0[A, B](dest_fn: A => (A, B), x: A, xs: List[B]): (A, List[B]) = {
+  private def unfoldl0[A, B](dest_fn: A => (A, B), x: A, xs: List[B]): (A, List[B]) = {
     try {
       val (x1, x2) = dest_fn(x)
       unfoldl0(dest_fn, x1, x2 :: xs)
     } catch {
-      case _: Throwable => (x, xs.reverse)
+      case _: ScolFail => (x, xs)
     }
+  }
+
+  def unfold1[A](dest_fn: A => (A, A), x: A, xs: List[A]): (A, List[A]) = {
+    @annotation.tailrec
+    def helper(seed: A, acc: List[A]): (A, List[A]) = {
+      val (nextSeed, result) = dest_fn(seed)
+      if (nextSeed == seed) (nextSeed, acc.reverse ++ xs)
+      else helper(nextSeed, result :: acc)
+    }
+
+    helper(x, Nil)
   }
 
   // Define the unfoldl function
@@ -267,6 +282,28 @@ object Lib {
     (x1, xs.reverse).swap
   }
 
+  def unfoldlAlter[A, B](dest_fn: A => (A, B), x: A): (List[B], A) = {
+    @annotation.tailrec
+    def helper(acc: List[B], seed: A): (List[B], A) = {
+      val (newSeed, b) = dest_fn(seed)
+      if (b == null) (acc.reverse, newSeed)
+      else helper(b :: acc, newSeed)
+    }
+
+    helper(Nil, x)
+  }
+
+  def unfoldrAlter[A, B](dest_fn: B => (A, B), x: B): (List[A], B) = {
+    @annotation.tailrec
+    def helper(acc: List[A], seed: B): (List[A], B) = {
+      val (a, newSeed) = dest_fn(seed)
+      if (a == null) (acc.reverse, newSeed) // Stop condition if `a` is null
+      else helper(a :: acc, newSeed)
+    }
+
+    helper(Nil, x)
+  }
+
   def unfoldr1[A](dest_fn: A => (A, A), x: A): List[A] = {
     val (xs, x1) = unfoldr0(dest_fn, x, List.empty)
     (x1::xs).reverse
@@ -277,7 +314,7 @@ object Lib {
       val (x1, x2) = dest_fn(x)
       unfold0(dest_fn, x1, unfold0(dest_fn, x2, xs))
     }catch {
-      case _: ScolFail => x::xs
+      case _: ScolFail => x :: xs
     }
   }
 
@@ -437,4 +474,10 @@ object Lib {
   def warn(msg : String) : Unit = println("SCOL WARNING: " + msg)
 
   def mergesort[A](rel : A => A => Boolean, l : List[A]) : List[A] = l.sortWith(uncurry_(rel))
+
+
+  def reverseTail[A](list : List[A]) : List[A] =  list match{
+    case Nil => Nil
+    case head :: tail => head :: tail.reverse
+  }
 }

@@ -20,6 +20,7 @@ object ScolException extends Exception{
 
   def scolWarn(msg : String) : Unit = println("WARNING: " + msg)
   def scolReport(msg : String) : Unit = println("REPORT: " + msg)
+  def assertScol(b : Boolean, msg : String): Unit = if !b then throw ScolFail(msg)
 
 
   def internalError(func: String): Nothing = scolError("INTERNAL ERROR", func)

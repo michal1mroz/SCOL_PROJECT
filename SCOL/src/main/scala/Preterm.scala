@@ -1,8 +1,8 @@
-import main.scala.Lib.{assoc, unfoldl, unfoldl1, unfoldr, unfoldr1, unions}
+import main.scala.Lib.{assoc, can, foldl1, foldr1, reverseTail, unfold, unfold1, unfoldl, unfoldl1, unfoldlAlter, unfoldr, unfoldr1, unfoldrAlter, unions}
 import main.scala.Names.{AssocHand, LeftAssoc, NonAssoc, RightAssoc, getInfixTypeInfo, hasInfixTypeFixity}
 import main.scala.Type.{HolType, Tycomp, Tyvar, mkVarType}
 import main.scala.Utils1.{TypeCompDestructed, TypeVarDestructed, destType}
-import utils.ScolException.{ScolFail, scolFail}
+import utils.ScolException.{ScolFail, assertScol, scolFail}
 
 object Preterm {
 
@@ -169,8 +169,7 @@ object Preterm {
     case _ => throw ScolFail("destCombPreterm: ?")
   }
 
-  def stripCombPreterm(ptm: Preterm): (List[Preterm], Preterm) =
-    unfoldl(destCombPreterm, ptm)
+  def stripCombPreterm(ptm: Preterm): (Preterm, List[Preterm]) = unfoldl(destCombPreterm, ptm).swap
 
   // Lambda abstractions
   def listMkAbsPreterm(vs: List[Preterm], ptm0: Preterm): Preterm =
@@ -178,11 +177,12 @@ object Preterm {
 
   def destAbsPreterm(ptm: Preterm): (Preterm, Preterm) = ptm match {
     case Ptmabs(v, ptm0) => (v, ptm0)
-    case _ => throw new Exception("destAbsPreterm: ?")
+    case _ => throw ScolFail("destAbsPreterm: ?")
   }
 
   def stripAbsPreterm(ptm: Preterm): (List[Preterm], Preterm) =
-    unfoldr(destAbsPreterm, ptm)
+    val (l, p) = unfoldr(destAbsPreterm, ptm)
+    (l.reverse, p)
     
   // Type annotations
   def isTypedPreterm(ptm: Preterm): Boolean = ptm match {
@@ -219,8 +219,8 @@ object Preterm {
 
   def listMkBinPreterm(h: AssocHand, f: Preterm, ptms: List[Preterm]): Preterm =
     h match {
-      case LeftAssoc => ptms.reduceLeft((ptm1, ptm2) => mkBinPreterm(f, ptm1, ptm2))
-      case RightAssoc => ptms.reduceRight((ptm1, ptm2) => mkBinPreterm(f, ptm1, ptm2))
+      case LeftAssoc => foldl1(mkBinPreterm.curried(f))(ptms)
+      case RightAssoc => foldr1(mkBinPreterm.curried(f))(ptms)
       case NonAssoc => ptms match {
         case List(ptm1, ptm2) => mkBinPreterm(f, ptm1, ptm2)
         case _ => throw ScolFail("listMkBinPreterm : ?")
@@ -233,7 +233,7 @@ object Preterm {
     (f, ptm1, ptm2)
   }
 
-  def destBinPreterm0(f0: Preterm, ptm: Preterm): (Preterm, Preterm) = {
+  private def destBinPreterm0(f0: Preterm, ptm: Preterm): (Preterm, Preterm) = {
     val (f, ptm1, ptm2) = destBinPreterm(ptm)
     assert(sameAtomPreterm(f0, f), "destBinPreterm0")
     (ptm1, ptm2)
@@ -243,12 +243,58 @@ object Preterm {
     try {
       h match {
         case LeftAssoc => unfoldl1(destBinPreterm0(f0, _), ptm)
-        case RightAssoc => unfoldr1(destBinPreterm0(f0, _), ptm)
+        case RightAssoc => reverseTail(unfoldr1(destBinPreterm0(f0, _), ptm).reverse).reverse
         case NonAssoc => val (ptm1, ptm2) = destBinPreterm0(f0, ptm)
           List(ptm1, ptm2)
       }
     } catch {
       case _: ScolFail => List(ptm)
     }
+  }
+
+  val condFn = mkNulltypeConstPreterm("COND")
+
+  def mkCondPreterm(ptm0: Preterm, ptm1: Preterm, ptm2: Preterm): Preterm = {
+    listMkCombPreterm(condFn, List(ptm0, ptm1, ptm2))
+  }
+
+  def destCondPreterm(ptm: Preterm): (Preterm, Preterm, Preterm) = stripCombPreterm(ptm) match {
+    case (Ptmconst("COND", _), List(ptm1, ptm2, ptm3)) => (ptm1, ptm2, ptm3)
+    case _ => throw ScolFail("destCondPreterm : ?")
+  }
+
+  def isCondPreterm(ptm: Preterm): Boolean = {
+    try {
+      destCombPreterm(ptm)
+      true
+    }catch
+      case _ : ScolFail => false
+  }
+
+  val letFn: Preterm = mkNulltypeConstPreterm("LET")
+
+  def mkLetPreterm(vptms: List[(Preterm, Preterm)], ptm0: Preterm): Preterm = {
+    val (vs, ptms) = vptms.unzip
+    val ptm1 = listMkAbsPreterm(vs, ptm0)
+    listMkBinPreterm(LeftAssoc, letFn, ptm1 :: ptms)
+  }
+
+  def destLetPreterm(ptm: Preterm): (List[(Preterm, Preterm)], Preterm) = {
+    val res = stripBinPreterm(LeftAssoc, letFn, ptm)
+    val (ptm1, ptms) = (res.head, res.tail)
+    assertScol(ptms.nonEmpty, "destLetPreterm: ?")
+    val (vs, ptm2) = stripAbsPreterm(ptm1)
+    val (vs1, vs2) = vs.splitAt(ptms.length)
+    val ptm0 = listMkAbsPreterm(vs2, ptm2)
+    val vptms = vs1.zip(ptms)
+    (vptms, ptm0)
+  }
+
+  def isLetPreterm(ptm: Preterm): Boolean = {
+    try {
+      destLetPreterm(ptm)
+      true
+  }catch
+      case _ : ScolFail => false
   }
 }
