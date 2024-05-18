@@ -1,8 +1,10 @@
-import main.scala.Lib.{assoc, can, foldl1, foldr1, reverseTail, unfold, unfold1, unfoldl, unfoldl1, unfoldlAlter, unfoldr, unfoldr1, unfoldrAlter, unions}
-import main.scala.Names.{AssocHand, LeftAssoc, NonAssoc, RightAssoc, getInfixTypeInfo, hasInfixTypeFixity}
+import main.scala.Lib.{assoc, can, foldl1, foldr1, frontLast, reverseTail, unfold, unfold1, unfoldl, unfoldl1, unfoldlAlter, unfoldr, unfoldr1, unfoldrAlter, unions}
+import main.scala.Names.{AssocHand, LeftAssoc, NonAssoc, RightAssoc, getEnumBracketZero, getEnumZeroBrackets, getEnumZeroOp, getInfixTypeInfo, hasInfixTypeFixity}
 import main.scala.Type.{HolType, Tycomp, Tyvar, mkVarType}
 import main.scala.Utils1.{TypeCompDestructed, TypeVarDestructed, destType}
-import utils.ScolException.{NatLocalFail, ScolFail, assertScol, scolFail, try0}
+import utils.ScolException.{EnumLocalFail, NatLocalFail, ScolFail, assertScol, scolFail, try0}
+
+import scala.annotation.tailrec
 
 object Preterm {
 
@@ -191,12 +193,14 @@ object Preterm {
   }
 
   // Atoms
+  @tailrec
   def isAtomPreterm(ptm: Preterm): Boolean = ptm match {
     case Ptmvar(_, _) | Ptmconst(_, _) => true
     case Ptmtyped(ptm0, _) => isAtomPreterm(ptm0)
     case _ => false
   }
 
+  @tailrec
   def atomPretermName(ptm: Preterm): String = ptm match {
     case Ptmvar(x, _) => x
     case Ptmconst(x, _) => x
@@ -204,6 +208,7 @@ object Preterm {
     case _ => throw ScolFail("atomPretermName : ?")
   }
 
+  @tailrec
   def sameAtomPreterm(ptm1: Preterm, ptm2: Preterm): Boolean = (ptm1, ptm2) match {
     case (Ptmvar(x1, pty1), Ptmvar(x2, pty2)) => x1 == x2 && pty1 == pty2
     case (Ptmconst(x1, _), Ptmconst(x2, _)) => x1 == x2
@@ -252,7 +257,7 @@ object Preterm {
     }
   }
 
-  val condFn = mkNulltypeConstPreterm("COND")
+  private val condFn = mkNulltypeConstPreterm("COND")
 
   def mkCondPreterm(ptm0: Preterm, ptm1: Preterm, ptm2: Preterm): Preterm = {
     listMkCombPreterm(condFn, List(ptm0, ptm1, ptm2))
@@ -271,7 +276,7 @@ object Preterm {
       case _ : ScolFail => false
   }
 
-  val letFn: Preterm = mkNulltypeConstPreterm("LET")
+  private val letFn: Preterm = mkNulltypeConstPreterm("LET")
 
   def mkLetPreterm(vptms: List[(Preterm, Preterm)], ptm0: Preterm): Preterm = {
     val (vs, ptms) = vptms.unzip
@@ -299,7 +304,7 @@ object Preterm {
   }
 
 
-  val pairFn : Preterm = mkNulltypeConstPreterm("PAIR")
+  private val pairFn : Preterm = mkNulltypeConstPreterm("PAIR")
 
   def mkPairPreterm(ptm1 : Preterm, ptm2 : Preterm) : Preterm = mkBinPreterm(pairFn, ptm1, ptm2)
 
@@ -355,4 +360,51 @@ object Preterm {
     destNatPreterm0(true, ptm0)
   }
 
+  def isNatPreterm(ptm : Preterm) : Boolean = {
+    try {
+      destCombPreterm(ptm)
+      true
+    }catch
+      case _ : ScolFail => false
+  }
+
+  def mkEnumPreterm(br1 : String, ptms : List[Preterm], br2 : String) : Preterm = {
+    val zero = getEnumBracketZero(br1)
+    val f = getEnumZeroOp(zero)
+    val (br1_, br2_) = getEnumZeroBrackets(zero)
+    assertScol((br1_ == br1) && (br2_ == br2), "mkEnumPreterm: bracket problem")
+    val fptm = mkNulltypeConstPreterm(f)
+    val zptm = mkNulltypeConstPreterm(zero)
+    listMkBinPreterm(RightAssoc, fptm, ptms :+ zptm)
+  }
+
+  def destEnumPreterm(ptm : Preterm) : (String, List[Preterm], String) = {
+    try {
+      val (fptm, ptm1, ptm2) = try0(destBinPreterm, ptm, EnumLocalFail())
+      val x = constPretermName(fptm)
+      val ptms0 = stripBinPreterm(RightAssoc, fptm, ptm)
+      val (ptms, z) = frontLast(ptms0)
+      val zero = constPretermName(z)
+      assertScol(getEnumZeroOp(zero) == x, "destEnumPreterm: ?")
+      val (br1, br2) = getEnumZeroBrackets(zero)
+      (br1, ptms, br2)
+    }catch
+      case _ : EnumLocalFail =>
+        val zero = constPretermName(ptm)
+        val (br1, br2) = getEnumZeroBrackets(zero)
+        (br1, Nil, br2)
+  }
+
+
+  def isEnumPreterm(ptm : Preterm) : Boolean = {
+    try {
+      destEnumPreterm(ptm)
+      true
+    } catch {
+      case _ : ScolFail => false
+    }
+  }
+
+
+  
 }

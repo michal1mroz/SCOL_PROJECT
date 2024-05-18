@@ -109,7 +109,7 @@ object Lib {
     case _ => throw IllegalArgumentException("Empty list")
   }
 
-  def frontLast[A](l: List[A]): (A, A) = (l.head, l.last)
+  def frontLast[A](l: List[A]): (List[A], A) = (l.init, l.last)
 
   @tailrec
   def listEq[A, B](eq: (A, B) => Boolean, xs: List[A], ys: List[B]): Boolean = (xs, ys) match {
