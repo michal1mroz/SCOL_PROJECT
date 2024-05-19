@@ -63,7 +63,6 @@ object Lexer {
   // Token lexer
   private def lexToken0(dfx : Boolean, vmrk : VarMark) : Reader[List[Char], Token] = {
 
-      // Punctuation
       def punctuationReader: Reader[List[Char], Token] = {
 
         @:((c : Char) => {
@@ -75,7 +74,6 @@ object Lexer {
 
       }
 
-      // Alphanumeric
       def alphanumReader: Reader[List[Char], Token] = {
         @:[List[Char], (Char, List[Char]), Token ] (
           (c : Char, cs : List[Char]) => {
@@ -92,7 +90,6 @@ object Lexer {
             lexCharWith(isAlphanumChar1) >>> lexList(0, lexCharWith(isAlphanumChar2)))
       }
 
-    // Numeric
       def numericReader: Reader[List[Char], Token] = {
         @:[List[Char], (Char, List[Char]), Token](
           ((c: Char, cs: List[Char]) => {
@@ -106,7 +103,6 @@ object Lexer {
             lexCharWith(isDigit) >>> lexList(0, lexCharWith(isAlphanumChar2)))
       }
 
-    // Symbolic
       def symbolicReader: Reader[List[Char], Token] = {
         @:[List[Char], List[Char], Token](
           (cs: List[Char]) => {
@@ -122,7 +118,6 @@ object Lexer {
           lexList(1, lexCharWith(isSymbolicChar)))
       }
 
-      // Quote
       def quoteReader: Reader[List[Char], Token] = {
         val List1 = List('\\', '"')
         val List2 = List('"')
@@ -142,7 +137,6 @@ object Lexer {
       }
 
 
-      // defix
       def defixReader : Reader[List[Char], Token] = {
         lexCharIn(List('$')) *>>
           (if (vmrk != NoMark)
@@ -153,9 +147,7 @@ object Lexer {
             lexToken0(true, vmrk))
       }
 
-
       // term/type var mark
-
       def ttVarmark : Reader[List[Char], Token] = {
         lexCharIn(List('\'', '%')) *@>
           ((c : Char) => {
@@ -186,13 +178,14 @@ object Lexer {
       }
 
 //    (((((((punctuationReader ||| alphanumReader) |||numericReader) ||| symbolicReader) ||| quoteReader) ||| defixReader) ||| ttVarmark) ||| remainingErrs)
+//    (((((((remainingErrs ||| ttVarmark) ||| defixReader) ||| quoteReader) ||| symbolicReader) ||| numericReader) ||| alphanumReader) ||| punctuationReader)
       punctuationReader |||
         alphanumReader |||
         numericReader |||
       symbolicReader |||
         quoteReader |||
 //        defixReader |||
-        ttVarmark |||
+//        ttVarmark |||
         remainingErrs
   }
 
@@ -202,11 +195,11 @@ object Lexer {
   def lexWhitespace: Reader[List[Char], List[Char]] = lexList(0, lexCharWith(isWhitespaceChar))
 
   def lex(src: List[Char]): List[Token] = {
-//    try {
+    try {
       val (tokens, _) = (lexList(0, lexToken >>* lexWhitespace) >>* lexEnd)(src)
       tokens
-//    } catch {
-//      case _: ReaderFail => throw LexFail("Undiagnosed lexical error")
-//    }
+    } catch {
+      case _: ReaderFail => throw LexFail("Undiagnosed lexical error")
+    }
   }
 }
