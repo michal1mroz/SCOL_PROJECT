@@ -57,6 +57,17 @@ object Printer {
     // Name class comparison
     private def needSeparation(ss0: List[Int], s1: Int): Boolean = (s1 > 0) && ss0.contains(s1)
 
+    def termNameForm(x: String): Int = {
+      if (isKeyword(x) || isEnumBracket(x)) {
+        0
+      } else if (isAlphanumeric(x)) {
+        1
+      } else if (isSymbolic(x)) {
+        2
+      } else {
+        0
+      }
+    }
     // Token boundary class
     private def typeNameForm(x: String): Int = {
       if (isKeyword(x) || isEnumBracket(x)) 0
@@ -175,33 +186,178 @@ object Printer {
 
     }
 
-    def printFullPreterm0(fl0 : Boolean, pr0 : (Int, Int), ptm : Preterm) : Unit = {
+    private def printFullPreterm0(fl0: Boolean, pr0: (Int, Int), ptm: Preterm): Unit = {
       if (isNatPreterm(ptm)) {
+        // Numeral
+        println("Preterm is nat: " + ptm)
         val n = destNatPreterm(ptm)
-        println(n)
-      }else if (isEnumPreterm(ptm)) {
-        val (br1, ptms, br2)  = destEnumPreterm(ptm)
+        print(n.toString)
+      } else if (isEnumPreterm(ptm)) {
+        // Enumeration
+        val (br1, ptms, br2) = destEnumPreterm(ptm)
         val pr1 = (5, 0)
-        val sp = exists(isCompoundPreterm, ptms)
-        print(br1 + " ")
-        ptms.foreach(ptm =>
-          if (sp) print(" ")
-          printFullPreterm0(false, pr1, ptm))
-        print(" " + br2)
-
-      }
-      else {
-        ptm match
-          case Ptmvar(x, _)  => {
-            if (hasNonfixFixity(x)){
-              printAtom(ptm)
-            }else{
-              print("$")
-              printAtom(ptm)
-            }
+        val sp = ptms.exists(isCompoundPreterm)
+        print(br1)
+        print(" ")
+        printSpSeplist(sp, printFullPreterm0(false, pr1, _), () => printSep(","), ptms)
+        print(" ")
+        print(br2)
+      } else ptm match {
+        case Ptmvar(x, _) =>
+          if (hasNonfixFixity(x)) {
+            // Nonfix atom
+            printAtom(ptm)
+          } else {
+            // Defixed prefix/infix/postfix/binder atom
+            print("$")
+            printAtom(ptm)
           }
+        case  Ptmconst(x, _) => if (hasNonfixFixity(x)) {
+          // Nonfix atom
+          printAtom(ptm)
+        } else {
+          // Defixed prefix/infix/postfix/binder atom
+          print("$")
+          printAtom(ptm)
+        }
+        case Ptmcomb(_, _) =>
+          if (isCondPreterm(ptm)) {
+            // Conditional expression
+            val (ptm0, ptm1, ptm2) = destCondPreterm(ptm)
+            val pr1 = (10, 0)
+            printOpenBrktIf(needPrecBrkts(fl0, pr0, pr1))
+            print("if ")
+            printFullPreterm0(true, pr1, ptm0)
+            print(" then ")
+            printFullPreterm0(true, pr1, ptm1)
+            print(" else ")
+            printFullPreterm0(true, pr1, ptm2)
+            printCloseBrktIf(needPrecBrkts(fl0, pr0, pr1))
+          } else if (isLetPreterm(ptm)) {
+            // Let-expression
+            val (vtms, tm0) = destLetPreterm(ptm)
+            val pr1 = (10, 0)
+
+            def printVtm(vtm: (Preterm, Preterm)): Unit = {
+              val (v, tm) = vtm
+              printFullPreterm0(true, pr1, v)
+              print(" = ")
+              printFullPreterm0(true, pr1, tm)
+            }
+
+            printOpenBrktIf(needPrecBrkts(fl0, pr0, pr1))
+            print("let ")
+            printSeplist(printVtm, () => printSep(" and "), vtms)
+            print(" in ")
+            printFullPreterm0(true, pr1, tm0)
+            printCloseBrktIf(needPrecBrkts(fl0, pr0, pr1))
+          } else if (isPairPreterm(ptm)) {
+            // Pair expression
+            val ptms = stripPairPreterm(ptm)
+            val pr1 = (5, 0)
+            val sp = ptms.exists(isCompoundPreterm)
+            printOpenBrkt()
+            printSpSeplist(sp, printFullPreterm0(false, pr1, _), () => printSep(","), ptms)
+            printCloseBrkt()
+          } else if (isPrefixPreterm(ptm)) {
+            // Prefix expression
+            val (f, ptm0) = destCombPreterm(ptm)
+            val pr1 = (30, 0)
+            printOpenBrktIf(needPrecBrkts(fl0, pr0, pr1))
+            printAtom(f)
+            print(" ")
+            printFullPreterm0(false, pr1, ptm0)
+            printCloseBrktIf(needPrecBrkts(fl0, pr0, pr1))
+          } else if (isInfixPreterm(ptm)) {
+            // Infix expression
+            val (f, ptms) = stripInfixPreterm(ptm)
+            val (n, h) = getInfixInfo(atomPretermName(f))
+
+            def printOp(): Unit = {
+              print(" ")
+              printAtom(f)
+              print(" ")
+            }
+
+            val pr1 = (20, n)
+            printOpenBrktIf(needPrecBrkts(fl0, pr0, pr1))
+            h match {
+              case LeftAssoc =>
+                // Left-associative infix application
+                printFullPreterm0(false, pr1, ptms.head)
+                printOp()
+                printSeplist(printFullPreterm0(true, pr1, _), printOp, ptms.tail)
+              case RightAssoc =>
+                // Right-associative infix application
+                printSeplist(printFullPreterm0(true, pr1, _), printOp, ptms.init)
+                printOp()
+                printFullPreterm0(false, pr1, ptms.last)
+              case NonAssoc =>
+                // Non-associative infix application
+                printSeplist(printFullPreterm0(true, pr1, _), printOp, ptms)
+                printCloseBrktIf(needPrecBrkts(fl0, pr0, pr1))
+            }
+            printCloseBrktIf(needPrecBrkts(fl0, pr0, pr1))
+          } else if (isPostfixPreterm(ptm)) {
+            // Postfix expression
+            val (f, ptm0) = destCombPreterm(ptm)
+            val pr1 = (40, 0)
+            printOpenBrktIf(needPrecBrkts(fl0, pr0, pr1))
+            printFullPreterm0(true, pr1, ptm0)
+            print(" ")
+            printAtom(f)
+            printCloseBrktIf(needPrecBrkts(fl0, pr0, pr1))
+          } else if (isBinderPreterm(ptm)) {
+            // Binder expression
+            val (f, vs, ptm0) = stripBinderPreterm(ptm)
+            val pr1 = (10, 0)
+            val sf = termNameForm(atomPretermName(f))
+            val s1 = termNameForm(atomPretermName(vs.head))
+            val s2 = termNameForm(atomPretermName(vs.last))
+            printOpenBrktIf(needPrecBrkts(fl0, pr0, pr1))
+            printAtom(f)
+            printSpaceIf(needSeparation(List(sf), s1))
+            printSplist(printFullPreterm0(false, pr1, _), vs)
+            printSpaceIf(needSeparation(List(2), s2))
+            print(". ")
+            printFullPreterm0(false, pr1, ptm0)
+            printCloseBrktIf(needPrecBrkts(fl0, pr0, pr1))
+          } else {
+            // Curried function application
+            val (f, ptm0) = destCombPreterm(ptm)
+            val pr1 = (50, 0)
+            printOpenBrktIf(needPrecBrkts(fl0, pr0, pr1))
+            printFullPreterm0(false, pr1, f)
+            print(" ")
+            printFullPreterm0(true, pr1, ptm0)
+            printCloseBrktIf(needPrecBrkts(fl0, pr0, pr1))
+          }
+        case Ptmabs(_, _) =>
+          // Lambda abstraction
+          val (vs, ptm0) = stripAbsPreterm(ptm)
+          val pr1 = (10, 0)
+          val s1 = termNameForm(atomPretermName(vs.head))
+          val s2 = termNameForm(atomPretermName(vs.last))
+          printOpenBrktIf(needPrecBrkts(fl0, pr0, pr1))
+          print("\\")
+          printSpaceIf(needSeparation(List(2), s1))
+          printSplist(printFullPreterm0(false, pr1, _), vs)
+          printSpaceIf(needSeparation(List(2), s2))
+          print(". ")
+          printFullPreterm0(false, pr1, ptm0)
+          printCloseBrktIf(needPrecBrkts(fl0, pr0, pr1))
+        case Ptmtyped(ptm0, pty) =>
+          // Type-annotated expression
+          val pr1 = (5, 0)
+          printOpenBrktIf(needPrecBrkts(fl0, pr0, pr1))
+          printFullPreterm0(true, pr1, ptm0)
+          print(":")
+          printPretype(pty)
+          printCloseBrktIf(needPrecBrkts(fl0, pr0, pr1))
       }
+}
 
+    def printFullPreterm(ptm: Preterm): Unit = {
+      printFullPreterm0(false, (5, 0), ptm)
     }
-
 }

@@ -48,7 +48,7 @@ object Preterm {
   private def stripInfixPretype0(name: String, h: AssocHand, pty: Pretype): List[Pretype] =
     try
       val (x, pty1, pty2) = destInfixPretype(pty)
-      assert(x == name, "stripInfixPretype0: unexpected infix operator")
+      assertScol(x == name, "stripInfixPretype0: unexpected infix operator")
 
       h match
         case LeftAssoc => stripInfixPretype0(x, h, pty1) ::: List(pty2)
@@ -242,7 +242,7 @@ object Preterm {
 
   private def destBinPreterm0(f0: Preterm, ptm: Preterm): (Preterm, Preterm) = {
     val (f, ptm1, ptm2) = destBinPreterm(ptm)
-    assert(sameAtomPreterm(f0, f), "destBinPreterm0")
+    assertScol(sameAtomPreterm(f0, f), "destBinPreterm0 : ?")
     (ptm1, ptm2)
   }
 
@@ -272,7 +272,7 @@ object Preterm {
 
   def isCondPreterm(ptm: Preterm): Boolean = {
     try {
-      destCombPreterm(ptm)
+      destCondPreterm(ptm)
       true
     }catch
       case _ : ScolFail => false
@@ -364,7 +364,7 @@ object Preterm {
 
   def isNatPreterm(ptm : Preterm) : Boolean = {
     try {
-      destCombPreterm(ptm)
+      destNatPreterm(ptm)
       true
     }catch
       case _ : ScolFail => false
@@ -387,13 +387,14 @@ object Preterm {
       val ptms0 = stripBinPreterm(RightAssoc, fptm, ptm)
       val (ptms, z) = frontLast(ptms0)
       val zero = constPretermName(z)
-      assertScol(getEnumZeroOp(zero) == x, "destEnumPreterm: ?")
+      val zeroOp= try0(getEnumZeroOp, zero, ScolFail("destEnumPreterm: Scolfail"))
+      assertScol(zeroOp == x, "destEnumPreterm: ?")
       val (br1, br2) = getEnumZeroBrackets(zero)
       (br1, ptms, br2)
     }catch
       case _ : EnumLocalFail =>
         val zero = constPretermName(ptm)
-        val (br1, br2) = getEnumZeroBrackets(zero)
+        val (br1, br2) = try0(getEnumZeroBrackets, zero, ScolFail("destEnumPreterm : 2"))
         (br1, Nil, br2)
   }
 
@@ -639,15 +640,15 @@ object Preterm {
       case (Ptygvar(_), _) =>
         if (theta.exists(_._1 == pair._1))
           val ptyPrime = theta.find(_._1 == pair._1).get._2
-          assert(ptyPrime == pair._2, s"$func: ?")
+          assertScol(ptyPrime == pair._2, s"$func: ?")
           theta
         else
           (pair._1, pair._2) :: theta
       case (Ptyvar(mx), Ptyvar(x)) =>
-        assert(x == mx, s"$func: ?")
+        assertScol(x == mx, s"$func: ?")
         Nil
       case (Ptycomp(mx, mptys), Ptycomp(x, ptys)) =>
-        assert(x == mx, s"$func: ?")
+        assertScol(x == mx, s"$func: ?")
         mptys.zip(ptys).foldLeft(theta)((acc, pair) => pretypeMatch0(acc, pair))
       case _ => throw new ScolFail(s"$func: ?")
     }
@@ -660,10 +661,10 @@ object Preterm {
     val func = "pretype_match"
     pair match {
       case (Ptmvar(mx, mpty), Ptmvar(x, pty)) =>
-        assert(x == mx, s"$func: ?")
+        assertScol(x == mx, s"$func: ?")
         pretypeMatch0(theta, (mpty, pty))
       case (Ptmconst(mx, mpty), Ptmconst(x, pty)) =>
-        assert(x == mx, s"$func: ?")
+        assertScol(x == mx, s"$func: ?")
         pretypeMatch0(theta, (mpty, pty))
       case (Ptmcomb(mptm1, mptm2), Ptmcomb(ptm1, ptm2)) =>
         val thetaPrime = pretermPretypeMatch0(theta, (mptm1, ptm1))

@@ -141,8 +141,6 @@ class PretermTest extends AnyFunSuite {
 
   test("stripCombPreterm") {
     val (firstPtm, combList) = stripCombPreterm(p3)
-    println(firstPtm)
-    println(combList)
     assert(firstPtm :: combList == List(p1, p2))
     assert(firstPtm == Ptmvar("x", Ptygvar(0)))
   }
@@ -191,11 +189,14 @@ class PretermTest extends AnyFunSuite {
     assert(!sameAtomPreterm(ptm4, ptm3))
   }
 
-  val leftAssocResult = listMkBinPreterm(LeftAssoc, f, ptms)
-  val rightAssocResult = listMkBinPreterm(RightAssoc, f, ptms)
-  val nonAssocResult = listMkBinPreterm(NonAssoc, f, List(ptm1, ptm2))
+  val leftAssocResult: Preterm = listMkBinPreterm(LeftAssoc, f, ptms)
+  val rightAssocResult: Preterm = listMkBinPreterm(RightAssoc, f, ptms2)
+  val nonAssocResult: Preterm = listMkBinPreterm(NonAssoc, f, List(ptm1, ptm2))
 
   test("destBinPreterm should correctly destructure binary preterms") {
+    println(rightAssocResult)
+    println(isEnumPreterm(rightAssocResult))
+    printFullPreterm(rightAssocResult)
     val (fResult, ptm1Result, ptm2Result) = destBinPreterm(nonAssocResult)
     assert(fResult === f)
     assert(ptm1Result === ptm1)
@@ -223,7 +224,7 @@ class PretermTest extends AnyFunSuite {
 
   test ("listMkBinderPreterm") {
     val res1 = listMkBinderPreterm(f, ptms2, ptm4)
-    println(res1)
+//    println(res1)
   }
 
 }
