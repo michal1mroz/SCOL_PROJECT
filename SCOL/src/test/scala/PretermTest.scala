@@ -190,13 +190,10 @@ class PretermTest extends AnyFunSuite {
   }
 
   val leftAssocResult: Preterm = listMkBinPreterm(LeftAssoc, f, ptms)
-  val rightAssocResult: Preterm = listMkBinPreterm(RightAssoc, f, ptms2)
+  val rightAssocResult: Preterm = listMkBinPreterm(RightAssoc, f, ptms)
   val nonAssocResult: Preterm = listMkBinPreterm(NonAssoc, f, List(ptm1, ptm2))
 
   test("destBinPreterm should correctly destructure binary preterms") {
-    println(rightAssocResult)
-    println(isEnumPreterm(rightAssocResult))
-    printFullPreterm(rightAssocResult)
     val (fResult, ptm1Result, ptm2Result) = destBinPreterm(nonAssocResult)
     assert(fResult === f)
     assert(ptm1Result === ptm1)

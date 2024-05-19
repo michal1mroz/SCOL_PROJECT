@@ -11,18 +11,15 @@ object Reader {
 
     def readList[A, B](n : Int, readFn : Reader[A, B]) : Reader[A, List[B]] = {
       src =>
-        def innerReadList(m: Int, reader: Reader[A, B], source: A): (List[B], A) = {
           try {
-            val (x, src1) = reader(source)
-            val (xs, src2) = innerReadList(m - 1, reader, src1)
+            val (x, src1) = readFn(src)
+            val (xs, src2) = readList(n - 1, readFn)(src1)
             (x :: xs, src2)
           } catch {
             case _: ReaderFail =>
-              if (m == 0) (Nil, source)
+              if (n <= 0) (Nil, src)
               else throw ReaderFail("Reader Failed to finish readList")
           }
-        }
-        innerReadList(n, readFn, src)
     }
 
     @targetName("@:")
@@ -56,13 +53,9 @@ object Reader {
       case _ => throw ReaderFail("readElem found no element to read")
     }
 
-    def readElemWith[A](testFn: A => Boolean): Reader[List[A], A] = {
-      src => {
-        val (x, srcRest) = readElem(src)
-        if (testFn(x)) (x, srcRest)
-        else throw ReaderFail("Test function in readElemWith failed")
-      }
-    }
+    def readElemWith[A](testFn: A => Boolean): Reader[List[A], A] =
+      src =>
+        readWith(readElem, testFn)(src)
 
     def readElemIn[A](es: List[A]): Reader[List[A], A] = {
         def testFn(e: A): Boolean = es.contains(e)

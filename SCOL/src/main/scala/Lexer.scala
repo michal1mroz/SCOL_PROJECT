@@ -15,7 +15,7 @@ object Lexer {
   private def lexCharWith = readElemWith[Char]
   private def lexCharIn = readElemIn[Char]
   private def lexCharNotIn = readElemNotIn[Char]
-  def lexList[A] = readList[List[Char], A]
+  private def lexList[A] = readList[List[Char], A]
   private def lexEnd = readEnd[Char]
 
 
@@ -65,12 +65,14 @@ object Lexer {
 
       // Punctuation
       def punctuationReader: Reader[List[Char], Token] = {
+
         @:((c : Char) => {
           if (dfx || vmrk != NoMark)
             throw LexFail(s"Cannot mark reserved word '$c'")
           else
             ReswordTok(c.toString)
         }, lexCharWith(isPunctuationChar))
+
       }
 
       // Alphanumeric
@@ -132,9 +134,9 @@ object Lexer {
           },
           lexCharIn(List2) *>>
             lexList(0,
-              (lexCharNotIn(List1) |||
-                (lexCharIn(List3) *>> lexCharIn(List1) ) |||
-                (@:(helper2, helper1)))
+              lexCharNotIn(List1) |||
+                (lexCharIn(List3) *>> (lexCharIn(List1)  |||
+                @:(helper2, helper1)))
             ) >>*
             /+(lexCharIn(List2), "Missing closing '\"'"))
       }
@@ -184,7 +186,14 @@ object Lexer {
       }
 
 //    (((((((punctuationReader ||| alphanumReader) |||numericReader) ||| symbolicReader) ||| quoteReader) ||| defixReader) ||| ttVarmark) ||| remainingErrs)
-      punctuationReader ||| alphanumReader ||| numericReader ||| symbolicReader ||| ttVarmark
+      punctuationReader |||
+        alphanumReader |||
+        numericReader |||
+      symbolicReader |||
+        quoteReader |||
+//        defixReader |||
+        ttVarmark |||
+        remainingErrs
   }
 
   def lexToken: Reader[List[Char], Token] = lexToken0(false, NoMark)

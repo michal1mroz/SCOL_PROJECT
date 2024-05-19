@@ -477,7 +477,7 @@ object Preterm {
     (f, v, ptm0)
   }
 
-  def stripBinderPreterm0(f0: Preterm, ptm: Preterm): (List[Preterm], Preterm) = {
+  private def stripBinderPreterm0(f0: Preterm, ptm: Preterm): (List[Preterm], Preterm) = {
     try {
       val (f, v, ptm0) = destBinderPreterm(ptm)
       assertScol(sameAtomPreterm(f0, f), "stripBinderPreterm0 : ?")
@@ -650,7 +650,7 @@ object Preterm {
       case (Ptycomp(mx, mptys), Ptycomp(x, ptys)) =>
         assertScol(x == mx, s"$func: ?")
         mptys.zip(ptys).foldLeft(theta)((acc, pair) => pretypeMatch0(acc, pair))
-      case _ => throw new ScolFail(s"$func: ?")
+      case _ => throw ScolFail(s"$func: ?")
     }
   }
 
