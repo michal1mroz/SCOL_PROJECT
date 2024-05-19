@@ -1,6 +1,6 @@
 import main.scala.Names.*
 import org.scalatest.funsuite.AnyFunSuite
-import utils.ScolException.ScolFail
+import main.scala.utils.ScolException.ScolFail
 
 class NamesTest extends AnyFunSuite {
 

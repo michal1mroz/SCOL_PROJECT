@@ -1,3 +1,4 @@
+package main.scala
 import main.scala.Lib.{assoc, can, foldl1, foldr1, frontLast, reverseTail, unfold, unfold1, unfoldl, unfoldl1, unfoldlAlter, unfoldr, unfoldr1, unfoldrAlter, union, unions}
 import main.scala.Names.{AssocHand, LeftAssoc, NonAssoc, RightAssoc, getEnumBracketZero, getEnumZeroBrackets, getEnumZeroOp, getInfixInfo, getInfixTypeInfo, hasBinderFixity, hasInfixFixity, hasInfixTypeFixity, hasPostfixFixity, hasPrefixFixity}
 import main.scala.Term.{Term, Tmabs, Tmcomb, Tmconst, Tmvar, mkAbs, mkComb, mkVar}

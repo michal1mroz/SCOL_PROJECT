@@ -4,7 +4,7 @@ import scala.util.{Failure, Success, Try}
 import Reader.*
 import main.scala.Lib.{charImplode, intOfString}
 import main.scala.Names.{isAlphanumChar1, isAlphanumChar2, isDigit, isEnumBracket, isKeyword, isNumeric, isPunctuationChar, isSymbolicChar, isUnprintableChar, isWhitespaceChar}
-import utils.ScolException.{LexFail, ReaderFail}
+import main.scala.utils.ScolException.{LexFail, ReaderFail}
 
 import scala.annotation.targetName
 import scala.language.postfixOps

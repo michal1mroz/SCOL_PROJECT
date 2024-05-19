@@ -1,4 +1,4 @@
-package utils
+package main.scala.utils
 
 // reworked class compared to original implementation so that it suits the 
 // Scala paradigm more

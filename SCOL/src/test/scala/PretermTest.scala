@@ -1,8 +1,9 @@
-import Preterm.*
+import main.scala.Preterm.*
 import main.scala.Names.{AssocHand, Infix, LeftAssoc, NonAssoc, RightAssoc, setTypeFixity}
 import main.scala.Type.{HolType, Tycomp, Tyvar}
 import org.scalatest.funsuite.AnyFunSuite
-import utils.ScolException.ScolFail
+import main.scala.utils.ScolException.ScolFail
+import main.scala.utils.Printer.*
 
 class PretermTest extends AnyFunSuite {
 
@@ -172,6 +173,7 @@ class PretermTest extends AnyFunSuite {
   val f: Preterm = Ptmconst("f", Ptyvar("0"))
   val ptms: List[Preterm] = List(ptm1, ptm2)
   val ptms1: List[Preterm] = List(ptm1, ptm2, ptm3, ptm4, ptm5)
+  val ptms2: List[Preterm] = List(ptm1, ptm2, ptm3)
 
   test("atomPretermName should return the correct names for different preterms") {
     assert(atomPretermName(ptm1) === "x")
@@ -219,6 +221,9 @@ class PretermTest extends AnyFunSuite {
     assert(stripNonAssocResult === List(ptm1, ptm2))
   }
 
-
+  test ("listMkBinderPreterm") {
+    val res1 = listMkBinderPreterm(f, ptms2, ptm4)
+    println(res1)
+  }
 
 }

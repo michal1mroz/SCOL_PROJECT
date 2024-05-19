@@ -1,5 +1,5 @@
 import Reader.{Reader, |||}
-import utils.ScolException.ReaderFail
+import main.scala.utils.ScolException.ReaderFail
 
 import scala.annotation.targetName
 
