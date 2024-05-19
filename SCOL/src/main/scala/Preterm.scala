@@ -1,8 +1,8 @@
 import main.scala.Lib.{assoc, can, foldl1, foldr1, frontLast, reverseTail, unfold, unfold1, unfoldl, unfoldl1, unfoldlAlter, unfoldr, unfoldr1, unfoldrAlter, union, unions}
 import main.scala.Names.{AssocHand, LeftAssoc, NonAssoc, RightAssoc, getEnumBracketZero, getEnumZeroBrackets, getEnumZeroOp, getInfixInfo, getInfixTypeInfo, hasBinderFixity, hasInfixFixity, hasInfixTypeFixity, hasPostfixFixity, hasPrefixFixity}
-import main.scala.Term.{Term, Tmvar, Tmabs, Tmcomb, Tmconst}
+import main.scala.Term.{Term, Tmabs, Tmcomb, Tmconst, Tmvar, mkAbs, mkComb, mkVar}
 import main.scala.Type.{HolType, Tycomp, Tyvar, mkVarType}
-import main.scala.Utils1.{TypeCompDestructed, TypeVarDestructed, destType}
+import main.scala.Utils1.{TypeCompDestructed, TypeVarDestructed, destType, mkConst}
 import utils.ScolException.{EnumLocalFail, LocalFail, NatLocalFail, ScolFail, assertScol, scolFail, try0}
 
 import scala.annotation.tailrec
@@ -23,8 +23,8 @@ object Preterm {
     case _ => throw ScolFail("Couldn't destroy type variable: Not a type variable")
   }
 
-  def destTygvarPretype(p: Pretype): Int = p match {
-    case Ptygvar(name) => name
+  def destGtyvarPretype(p: Pretype): Int = p match {
+    case Ptygvar(n) => n
     case _ => throw ScolFail("Couldn't destroy generated type variable: Not a generated type variable")
   }
 
@@ -80,7 +80,7 @@ object Preterm {
     case TypeCompDestructed(x, tys) => Ptycomp(x, tys.map(typeToPretype))
   }
 
-  private def pretypeToType0(nxs: List[(Pretype, String)], pty: Pretype): HolType = {
+  private def pretypeToType0(nxs: List[(Int, String)], pty: Pretype): HolType = {
     pty match
       case Ptyvar(x) => mkVarType(x)
 
@@ -450,6 +450,18 @@ object Preterm {
   }
 
 
+
+
+
+
+
+
+
+  
+
+
+
+
   //fixme important to test this one
   def listMkBinderPreterm(f: Preterm, vs: List[Preterm], ptm0: Preterm): Preterm = {
     vs.foldRight(ptm0)((v, ptm) => mkBinderPreterm(f, v, ptm))
@@ -546,5 +558,124 @@ object Preterm {
   }
 
 
-  
+
+
+
+
+
+  def pretermToTerm0(nxs: List[(Int, String)], ptm: Preterm): Term = ptm match {
+    case Ptmvar(x, pty) =>
+      val ty = pretypeToType0(nxs, pty)
+      mkVar(x, ty)
+    case Ptmconst(x, pty) =>
+      val ty = pretypeToType0(nxs, pty)
+      val xPrime = if (x == "<=>") "=" else x
+      mkConst(xPrime, ty)
+    case Ptmcomb(ptm1, ptm2) =>
+      val tm1 = pretermToTerm0(nxs, ptm1)
+      val tm2 = pretermToTerm0(nxs, ptm2)
+      mkComb(tm1, tm2)
+    case Ptmabs(ptm1, ptm2) =>
+      val tm1 = pretermToTerm0(nxs, ptm1)
+      val tm2 = pretermToTerm0(nxs, ptm2)
+      mkAbs(tm1, tm2)
+    case Ptmtyped(ptm0, pty) =>
+      pretermToTerm0(nxs, ptm0) // Type annotation is just ignored
+  }
+
+  // tynumMapping - Create gtyvar number to tyvar name mapping, avoiding 'xs0'
+
+  def tynumMapping0(xs0: List[String], i: Int, ns: List[Int]): List[(Int, String)] = ns match {
+    case n :: ns1 =>
+      val x = i.toString
+      if (xs0.contains(x))
+        tynumMapping0(xs0, i + 1, ns)
+      else
+        (n, x) :: tynumMapping0(xs0, i + 1, ns1)
+    case Nil => Nil
+  }
+
+  def tynumMapping(xs0: List[String], ns: List[Int]): List[(Int, String)] =
+    tynumMapping0(xs0, 1, ns.sorted)
+
+  def pretermToTerm(ptm: Preterm): Term = {
+    val xs0 = pretermTyvars(ptm).map(destTyvarPretype)
+    val ns = pretermGtyvars(ptm).map(destGtyvarPretype)
+    val nxs = tynumMapping(xs0, ns)
+    pretermToTerm0(nxs, ptm)
+  }
+
+  def pretermInst(theta: List[(Pretype, Pretype)], ptm: Preterm): Preterm = ptm match {
+    case Ptmvar(x, pty) =>
+      val ptyPrime = pretypeInst(theta, pty)
+      if (ptyPrime == pty) ptm else Ptmvar(x, ptyPrime)
+    case Ptmconst(x, pty) =>
+      val ptyPrime = pretypeInst(theta, pty)
+      if (ptyPrime == pty) ptm else Ptmconst(x, ptyPrime)
+    case Ptmcomb(ptm1, ptm2) =>
+      val ptm1Prime = pretermInst(theta, ptm1)
+      val ptm2Prime = pretermInst(theta, ptm2)
+      if (ptm1Prime == ptm1 && ptm2Prime == ptm2) ptm else Ptmcomb(ptm1Prime, ptm2Prime)
+    case Ptmabs(pv, ptm0) =>
+      val pvPrime = pretermInst(theta, pv)
+      val ptm0Prime = pretermInst(theta, ptm0)
+      if (pvPrime == pv && ptm0Prime == ptm0) ptm else Ptmabs(pvPrime, ptm0Prime)
+    case Ptmtyped(ptm0, pty) =>
+      val ptm0Prime = pretermInst(theta, ptm0)
+      val ptyPrime = pretypeInst(theta, pty)
+      if (ptm0Prime == ptm0 && ptyPrime == pty) ptm else Ptmtyped(ptm0Prime, ptyPrime)
+  }
+
+
+
+
+  def removeIdentities(theta: List[(Pretype, Pretype)]): List[(Pretype, Pretype)] =
+    theta.filter { case (x, y) => x != y }
+
+  def pretypeMatch0(theta: List[(Pretype, Pretype)], pair: (Pretype, Pretype)): List[(Pretype, Pretype)] = {
+    val func = "pretype_match"
+    pair match {
+      case (Ptygvar(_), _) =>
+        if (theta.exists(_._1 == pair._1))
+          val ptyPrime = theta.find(_._1 == pair._1).get._2
+          assert(ptyPrime == pair._2, s"$func: ?")
+          theta
+        else
+          (pair._1, pair._2) :: theta
+      case (Ptyvar(mx), Ptyvar(x)) =>
+        assert(x == mx, s"$func: ?")
+        Nil
+      case (Ptycomp(mx, mptys), Ptycomp(x, ptys)) =>
+        assert(x == mx, s"$func: ?")
+        mptys.zip(ptys).foldLeft(theta)((acc, pair) => pretypeMatch0(acc, pair))
+      case _ => throw new ScolFail(s"$func: ?")
+    }
+  }
+
+  def pretypeMatch(pair: (Pretype, Pretype)): List[(Pretype, Pretype)] =
+    removeIdentities(pretypeMatch0(Nil, pair))
+
+  def pretermPretypeMatch0(theta: List[(Pretype, Pretype)], pair: (Preterm, Preterm)): List[(Pretype, Pretype)] = {
+    val func = "pretype_match"
+    pair match {
+      case (Ptmvar(mx, mpty), Ptmvar(x, pty)) =>
+        assert(x == mx, s"$func: ?")
+        pretypeMatch0(theta, (mpty, pty))
+      case (Ptmconst(mx, mpty), Ptmconst(x, pty)) =>
+        assert(x == mx, s"$func: ?")
+        pretypeMatch0(theta, (mpty, pty))
+      case (Ptmcomb(mptm1, mptm2), Ptmcomb(ptm1, ptm2)) =>
+        val thetaPrime = pretermPretypeMatch0(theta, (mptm1, ptm1))
+        pretermPretypeMatch0(thetaPrime, (mptm2, ptm2))
+      case (Ptmabs(mptm1, mptm2), Ptmabs(ptm1, ptm2)) =>
+        val thetaPrime = pretermPretypeMatch0(theta, (mptm1, ptm1))
+        pretermPretypeMatch0(thetaPrime, (mptm2, ptm2))
+      case (Ptmtyped(mptm0, _), _) =>
+        pretermPretypeMatch0(theta, (mptm0, pair._2)) // Ignore type annotation
+      case _ => throw new ScolFail(s"$func: ?")
+    }
+  }
+
+  def pretermPretypeMatch(pair: (Preterm, Preterm)): List[(Pretype, Pretype)] =
+    removeIdentities(pretermPretypeMatch0(Nil, pair))
 }

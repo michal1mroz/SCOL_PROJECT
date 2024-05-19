@@ -28,9 +28,9 @@ class PretermTest extends AnyFunSuite {
     val ptg = Ptygvar(n)
     val ptComp = Ptycomp("->", List(pty, ptg))
 
-    assert(n == destTygvarPretype(ptg))
-    assertThrows[ScolFail](destTygvarPretype(pty))
-    assertThrows[ScolFail](destTygvarPretype(ptComp))
+    assert(n == destGtyvarPretype(ptg))
+    assertThrows[ScolFail](destGtyvarPretype(pty))
+    assertThrows[ScolFail](destGtyvarPretype(ptComp))
   }
 
   test("Destructor of PtComp") {
