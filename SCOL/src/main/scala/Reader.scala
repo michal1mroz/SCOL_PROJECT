@@ -1,3 +1,5 @@
+package main.scala
+
 import Reader.{Reader, |||}
 import main.scala.utils.ScolException.ReaderFail
 

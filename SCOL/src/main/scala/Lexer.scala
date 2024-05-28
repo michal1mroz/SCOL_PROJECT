@@ -1,7 +1,7 @@
-import Lexer.{/+, lexCharWith}
+package main.scala
 
 import scala.util.{Failure, Success, Try}
-import Reader.*
+import main.scala.Reader.*
 import main.scala.Lib.{charImplode, intOfString}
 import main.scala.Names.{isAlphanumChar1, isAlphanumChar2, isDigit, isEnumBracket, isKeyword, isNumeric, isPunctuationChar, isSymbolicChar, isUnprintableChar, isWhitespaceChar}
 import main.scala.utils.ScolException.{LexFail, ReaderFail}
