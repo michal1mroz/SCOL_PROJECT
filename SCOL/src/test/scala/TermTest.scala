@@ -1,7 +1,7 @@
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
-import Term._
-import Type._
+import main.scala.Term._
+import main.scala.Type._
 
 
 class TermTest extends AnyFlatSpec {

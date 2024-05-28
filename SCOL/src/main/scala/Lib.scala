@@ -335,6 +335,10 @@ object Lib {
     if mem_(eq, x, xs) then xs
     else x :: xs
   }
+  
+  def subtract_[A](eq: A => A => Boolean, xs1: List[A], xs2: List[A]): List[A] = {
+    xs1.filter(x1 => !mem_(eq, x1, xs2))
+  }
 
   def insert_Curried[A](eq: A => A => Boolean)(x: A, xs: List[A]): List[A] = insert_(eq, x, xs)
 

@@ -1,5 +1,6 @@
 package main.scala
 import Lib.*
+import Type.*
 
 @main
 def main(): Unit = {
@@ -49,4 +50,11 @@ def main(): Unit = {
     val result4 = unions_(isEqual, lists)
     println(result3)
     println(result4)
+
+    val t1 = Tyvar("pies");
+    val t2 = Tyvar("Kot");
+    val t3 = Tycomp("pies", List(t2, t1))
+    val t4 = Tycomp("pies", List(t2, t1))
+
+    println(typeEq(t3, t4))
 }

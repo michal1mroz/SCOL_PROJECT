@@ -12,7 +12,13 @@ object Type {
 
   case class Tyvar(name: String) extends HolType
 
-  case class Tycomp(name: String, params: List[HolType]) extends HolType
+  case class Tycomp(name: String, params: List[HolType]) extends HolType{
+    override def equals(obj: Any): Boolean = obj match {
+      case that: Tycomp =>
+        this.name == that.name && this.params.length == this.params.length &&
+        this.params == that.params
+    }
+  }
 
   private val theTyconsts: mutable.HashMap[String, BigInt] = mutable.HashMap.empty
 

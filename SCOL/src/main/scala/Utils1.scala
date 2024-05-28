@@ -279,72 +279,72 @@ object Utils1 {
 
   // fixme typeEq must work correctly, last 2 cases give type error
 
-  /*
-def termTyvars(tm: Term): List[HolType] = {
-  destTerm(tm) match {
-    case Tmvar(_, ty) =>
-      typeTyVars(ty)
-    case Tmconst(_, ty) =>
-      typeTyVars(ty)
-    case Tmcomb(tm1, tm2) =>
-      union_(typeEq, termTyvars(tm1), termTyvars(tm2))
-    case Tmabs(v, tm0) =>
-      union_(typeEq, termTyvars(v), termTyvars(tm0))
+
+  def termTyvars(tm: Term): List[HolType] = {
+    destTerm(tm) match {
+      case Tmvar(_, ty) =>
+        typeTyVars(ty)
+      case Tmconst(_, ty) =>
+        typeTyVars(ty)
+      case Tmcomb(tm1, tm2) =>
+        // typeEq needs currying to match function signatures
+        union_(typeEq.curried, termTyvars(tm1), termTyvars(tm2))
+      case Tmabs(v, tm0) =>
+        union_(typeEq.curried, termTyvars(v), termTyvars(tm0))
+    }
+
   }
 
-}
 
-  fixme need termEq for it to work
+  def alphaEq0(theta0: List[(Term, Term)], tm1: Term, tm2: Term): Boolean = {
+    (destTerm(tm1), destTerm(tm2)) match {
+      case (Tmvar(_, _), Tmvar(_,_)) =>
+        val tm1p = try assoc(tm1, theta0) catch {case _: ScolFail => tm1}
+        val tm2p = try assoc(tm2, theta0) catch {case _: ScolFail => tm2}
 
-def alphaEq0(theta0: List[(Term, Term)], tm1: Term, tm2: Term): Boolean = {
-  (destTerm(tm1), destTerm(tm2)) match {
-    case (Tmvar(_, _), Tmvar(_,_)) =>
-      val tm1p = try assoc(tm1, theta0) catch {case _: ScolFail => tm1}
-      val tm2p = try assoc(tm2, theta0) catch {case _: ScolFail => tm2}
-
-      termEq(tm1p, tm2) && termEq(tm2p, tm1)
-    case (Tmconst(_, _), Tmconst(_,_)) =>
-      termEq(tm1, tm2)
-    case (Tmcomb(tm1a, tm1b), Tmcomb(tm2a, tm2b)) =>
-      alphaEq0(theta0, tm1a, tm2a) && alphaEq0(theta0, tm1b, tm2b)
-    case (Tmabs(v1, tm01), Tmabs(v2, tm02)) =>
-      val thetaOp = (v1, v2) :: theta0
-      val ty1 = varType(v1)
-      val ty2 = varType(v2)
-      typeEq(ty1, ty2) && alphaEq0(thetaOp, tm01, tm02)
-    case _ => false
+        termEq(tm1p, tm2) && termEq(tm2p, tm1)
+      case (Tmconst(_, _), Tmconst(_,_)) =>
+        termEq(tm1, tm2)
+      case (Tmcomb(tm1a, tm1b), Tmcomb(tm2a, tm2b)) =>
+        alphaEq0(theta0, tm1a, tm2a) && alphaEq0(theta0, tm1b, tm2b)
+      case (Tmabs(v1, tm01), Tmabs(v2, tm02)) =>
+        val thetaOp = (v1, v2) :: theta0
+        val ty1 = varType(v1)
+        val ty2 = varType(v2)
+        typeEq(ty1, ty2) && alphaEq0(thetaOp, tm01, tm02)
+     case _ => false
+    }
   }
-}
 
-def alphaEq(tm1: Term, tm2: Term): Boolean = {
-  termEq(tm1, tm2) || alphaEq0(List.empty, tm1, tm2)
-}
-
-
-def freeVars(tm: Term): List[Term] = {
-  destTerm(tm) match {
-    case Tmvar(_,_) => List(tm)
-    case Tmconst(_,_) => List.empty
-    case Tmcomb(tm1, tm2) => freeVars(tm1).filter(x1 => !mem_(termEq)(x1, freeVars(tm2)))
-    case Tmabs(v, tm0) => filter(termEq, freeVars(tm0), List(v))
+  def alphaEq(tm1: Term, tm2: Term): Boolean = {
+    termEq(tm1, tm2) || alphaEq0(List.empty, tm1, tm2)
   }
-}
 
-def varFreeIn0(v: Term, tm: Term): Boolean = {
-  destTerm(tm) match {
-    case Tmvar(_,_) => termEq(v, tm)
-    case Tmconst(_,_) => false
-    case Tmcomb(tm1, tm2) => varFreeIn0(v, tm1) || varFreeIn0(v, tm2)
-    case Tmabs(v0, tm0) => !termEq(v, v0) && varFreeIn0(v, tm0)
+
+  def freeVars(tm: Term): List[Term] = {
+    destTerm(tm) match {
+      case Tmvar(_,_) => List(tm)
+      case Tmconst(_,_) => List.empty
+      case Tmcomb(tm1, tm2) => union_(termEq.curried, freeVars(tm1), freeVars(tm2))
+      case Tmabs(v, tm0) => subtract_(termEq.curried, freeVars(tm0), List(v))
+    }
   }
-}
 
-def varFreeIn(v: Term, tm: Term): Boolean = {
-  assert1(isVar(v), "Arg 1 not a variable")
-  varFreeIn0(v, tm)
-}
+  def varFreeIn0(v: Term, tm: Term): Boolean = {
+    destTerm(tm) match {
+      case Tmvar(_,_) => termEq(v, tm)
+      case Tmconst(_,_) => false
+      case Tmcomb(tm1, tm2) => varFreeIn0(v, tm1) || varFreeIn0(v, tm2)
+      case Tmabs(v0, tm0) => !termEq(v, v0) && varFreeIn0(v, tm0)
+    }
+  }
 
- */
+  def varFreeIn(v: Term, tm: Term): Boolean = {
+    assert1(isVar(v), "Arg 1 not a variable")
+    varFreeIn0(v, tm)
+  }
+
+
 
   def variant(vs0: List[Term], v: Term): Term = {
     val (x, ty) = try1(destVar, v, "Not a variable")
@@ -375,108 +375,105 @@ def varFreeIn(v: Term, tm: Term): Boolean = {
 
 
   case class Clash(v: Term) extends Exception
-  /*
-def varInst0(vs0: List[Term], theta: List[(Term, Term)], tm: Term): Term = {
-  destTerm(tm) match{
-    case Tmvar(_,_) =>
-      try{
-        val tm_ = assoc(tm, theta)
-        val vsf_ = freeVars(tm_)
-        if (disjoint_(termEq, vsf_, vs0)) tm_
-        else{
-          val v_ = find[Term](v0 => mem_(termEq)(v0, vsf_), vs0.reverse)
-          throw Clash(v_)
+  def varInst0(vs0: List[Term], theta: List[(Term, Term)], tm: Term): Term = {
+    destTerm(tm) match{
+      case Tmvar(_,_) =>
+        try{
+          val tm_ = assoc(tm, theta)
+          val vsf_ = freeVars(tm_)
+          if (disjoint_(termEq.curried, vsf_, vs0)) tm_
+          else{
+            val v_ = find[Term](v0 => mem_(termEq.curried, v0, vsf_), vs0.reverse)
+            throw Clash(v_)
         }
       } catch {
         case _: ScolFail => tm
       }
-    case Tmconst(_,_) => tm
-    case Tmcomb(tm1, tm2) =>
-      val tm1_ = varInst0(vs0, theta, tm1)
-      val tm2_ = varInst0(vs0, theta, tm2)
-      if (tm1_ == tm1 && tm2_ == tm2) tm
-      else mkComb(tm1_, tm2_)
-    case Tmabs(v, tm0) =>
-      val theta_ :List[(Term, Term)] = fstFilter(v1 => !termEq(v1, v), theta)
-      try {
-        val tm0_ = varInst0(v :: vs0, theta_, tm0)
-        if (tm0_ == tm0) tm else mkAbs(v, tm0_)
-      } catch {
-        case Clash(v_) if !termEq(v, v_) =>
-          assert0(termEq(v, v_), Clash(v_))
-          val avs = flatten(freeVars(tm0).map {v => try freeVars(assoc(v, theta)) catch {case _: ScolFail => List(v)}})
-          val v_ = cvariant(avs, v)
-          val tm0_ = varInst0(vs0, (v, v_):: theta_, tm0)
-          mkAbs(v_, tm0_)
-      }
-  }
-}
-
-def varInst(theta: List[(Term, Term)], tm: Term): Term = {
-  try {
-    theta match{
-      case Nil => tm
-      case _ =>
-        assert1(theta.forall((v,_) => isVar(v)),"Non-variable in instantiation domain")
-        assert1(theta.forall((v, tm_) => typeEq(typeOf(tm_), typeOf(v))), "Non-equal types in instantiation list")
-        varInst0(Nil, theta, tm)
+      case Tmconst(_,_) => tm
+      case Tmcomb(tm1, tm2) =>
+        val tm1_ = varInst0(vs0, theta, tm1)
+        val tm2_ = varInst0(vs0, theta, tm2)
+        if (tm1_ == tm1 && tm2_ == tm2) tm
+        else mkComb(tm1_, tm2_)
+      case Tmabs(v, tm0) =>
+        val theta_ :List[(Term, Term)] = fstFilter(v1 => !termEq(v1, v), theta)
+        try {
+          val tm0_ = varInst0(v :: vs0, theta_, tm0)
+          if (tm0_ == tm0) tm else mkAbs(v, tm0_)
+        } catch {
+          case Clash(v_) if !termEq(v, v_) =>
+            //assert0(termEq(v, v_), Clash(v_)) // I don't think it's needed here, but maybe I'm missing something
+            val avs = flatten(freeVars(tm0).map {v => try freeVars(assoc(v, theta)) catch {case _: ScolFail => List(v)}})
+            val v_ = cvariant(avs, v)
+            val tm0_ = varInst0(vs0, (v, v_):: theta_, tm0)
+            mkAbs(v_, tm0_)
+        }
     }
-  }catch {
-    case Clash(v_) => internalError("varInst")
   }
-}
 
-
-def tyvarInst0(theta0: List[(Term, Term)], tytheta: List[(HolType,HolType)], tm: Term): Term = {
-  destTerm(tm) match {
-    case Tmvar(x, ty) =>
-      val ty_ = typeInst(tytheta, ty)
-      val tm_ = if (ty_ == ty) tm else mkVar(x, ty_)
-      try {
-        val v0 = invAssoc(tm_, theta0)
-        if (termEq(v0, tm)) tm_
-        else throw Clash(v0)
-      } catch{
-        case _: ScolFail => tm_
+  def varInst(theta: List[(Term, Term)], tm: Term): Term = {
+    try {
+      theta match{
+        case Nil => tm
+        case _ =>
+          assert1(theta.forall((v,_) => isVar(v)),"Non-variable in instantiation domain")
+          assert1(theta.forall((v, tm_) => typeEq(typeOf(tm_), typeOf(v))), "Non-equal types in instantiation list")
+          varInst0(Nil, theta, tm)
       }
-    case Tmconst(x, ty) =>
-      val ty_ = typeInst(tytheta, ty)
-      if (typeEq(ty_, ty)) tm else mkConst(x, ty_)
-    case Tmcomb(tm1, tm2) =>
-      val tm1_ = tyvarInst0(theta0, tytheta, tm1)
-      val tm2_ = tyvarInst0(theta0, tytheta, tm2)
-      if (tm1_ == tm1 && tm2_ == tm2) tm
-      else mkComb(tm1_, tm2_)
-    case Tmabs(v, tm0) =>
-      val v_ = tyvarInst0(Nil, tytheta, v)
-      try {
-        val tm0_ = tyvarInst0((v, v_) :: theta0, tytheta, tm0)
-        if (v_ == v && tm0_ == tm0) tm else mkAbs(v_, tm0_)
-      }catch {
-        case Clash(v_) if !termEq(v, v_) =>
-          assert0(termEq(v, v_), Clash(v_))
-          val vs = freeVars(tm0)
-          val v_ = cvariant(vs, v)
-          val tm0_ = varInst0(Nil, List((v, v_)), tm0)
-          val v__ = tyvarInst0(Nil, tytheta, v_)
-          val tm0__ = tyvarInst0(theta0, tytheta, tm0_)
-          mkAbs(v__, tm0__)
-      }
-  }
-}
-
-def tyvarInst(tytheta: List[(HolType, HolType)], tm: Term): Term = {
-  try {
-    tytheta match {
-      case Nil => tm
-      case _ =>
-        assert1(tytheta.forall((ty,_) => isVarType(ty)), "Non-type-variable in instantiation domain")
-        tyvarInst0(Nil, tytheta, tm)
+    }catch {
+      case Clash(v_) => internalError("varInst")
     }
-  } catch {
-    case Clash(_) => internalError("tyvarInst")
   }
-}
 
-*/
+
+  def tyvarInst0(theta0: List[(Term, Term)], tytheta: List[(HolType,HolType)], tm: Term): Term = {
+    destTerm(tm) match {
+      case Tmvar(x, ty) =>
+        val ty_ = typeInst(tytheta, ty)
+        val tm_ = if (ty_ == ty) tm else mkVar(x, ty_)
+        try {
+          val v0 = invAssoc(tm_, theta0)
+          if (termEq(v0, tm)) tm_
+          else throw Clash(v0)
+        } catch{
+          case _: ScolFail => tm_
+        }
+      case Tmconst(x, ty) =>
+        val ty_ = typeInst(tytheta, ty)
+        if (typeEq(ty_, ty)) tm else mkConst(x, ty_)
+      case Tmcomb(tm1, tm2) =>
+        val tm1_ = tyvarInst0(theta0, tytheta, tm1)
+        val tm2_ = tyvarInst0(theta0, tytheta, tm2)
+        if (tm1_ == tm1 && tm2_ == tm2) tm
+        else mkComb(tm1_, tm2_)
+      case Tmabs(v, tm0) =>
+        val v_ = tyvarInst0(Nil, tytheta, v)
+        try {
+          val tm0_ = tyvarInst0((v, v_) :: theta0, tytheta, tm0)
+          if (v_ == v && tm0_ == tm0) tm else mkAbs(v_, tm0_)
+        }catch {
+          case Clash(v_) if !termEq(v, v_) =>
+            //assert0(termEq(v, v_), Clash(v_))
+            val vs = freeVars(tm0)
+            val v_ = cvariant(vs, v)
+            val tm0_ = varInst0(Nil, List((v, v_)), tm0)
+            val v__ = tyvarInst0(Nil, tytheta, v_)
+            val tm0__ = tyvarInst0(theta0, tytheta, tm0_)
+            mkAbs(v__, tm0__)
+        }
+    }
+  }
+
+  def tyvarInst(tytheta: List[(HolType, HolType)], tm: Term): Term = {
+    try {
+      tytheta match {
+        case Nil => tm
+        case _ =>
+          assert1(tytheta.forall((ty,_) => isVarType(ty)), "Non-type-variable in instantiation domain")
+          tyvarInst0(Nil, tytheta, tm)
+      }
+    } catch {
+      case Clash(_) => internalError("tyvarInst")
+    }
+  }
 } 
