@@ -150,7 +150,7 @@ object TypeAnal {
     }
   }
 
-  private def unifyPretypes0(theta0: List[(Pretype, Pretype)], pty1: Pretype, pty2: Pretype): List[(Pretype, Pretype)] = {
+  def unifyPretypes0(theta0: List[(Pretype, Pretype)], pty1: Pretype, pty2: Pretype): List[(Pretype, Pretype)] = {
     val theta12 = basicUnifyPretypes(pty1, pty2)
     thetaClosure(theta0, theta12)
   }
