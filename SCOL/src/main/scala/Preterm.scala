@@ -28,6 +28,12 @@ object Preterm {
     case Ptygvar(n) => n
     case _ => throw ScolFail("Couldn't destroy generated type variable: Not a generated type variable")
   }
+  
+  def isGtyvarPretype(pty : Pretype) : Boolean = try {
+    destGtyvarPretype(pty) 
+    true
+  } catch
+    case _ : ScolFail => false
 
   def isTygvarPretype(p: Pretype): Boolean = p match
     case Ptygvar(_) => true
@@ -674,7 +680,7 @@ object Preterm {
         pretermPretypeMatch0(thetaPrime, (mptm2, ptm2))
       case (Ptmtyped(mptm0, _), _) =>
         pretermPretypeMatch0(theta, (mptm0, pair._2)) // Ignore type annotation
-      case _ => throw new ScolFail(s"$func: ?")
+      case _ => throw ScolFail(s"$func: ?")
     }
   }
 

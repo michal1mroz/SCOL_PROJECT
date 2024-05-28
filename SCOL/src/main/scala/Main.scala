@@ -1,5 +1,5 @@
 import main.scala.Names.isNumeric
-
+import main.scala.TypeAnal.*
 
 @main
 def mAin(): Unit = {

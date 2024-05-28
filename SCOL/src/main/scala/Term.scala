@@ -1,6 +1,6 @@
 package main.scala
 
-import Type.{HolType, destFunType, mkFunType, typeInst}
+import Type.{HolType, destFunType, mkFunType, typeEq, typeInst}
 import utils.ScolException.ScolFail
 
 import scala.collection.mutable
@@ -108,4 +108,10 @@ object Term {
     case _ => false
   }
 
+
+  def termEq(tm1 : Term, tm2 : Term) : Boolean = (tm1, tm2) match
+    case (Tmvar(x1, t1), Tmvar(x2, t2)) => x1 == x2 && typeEq(t1, t2)
+    case (Tmconst(x1, t1), Tmconst(x2, t2)) => x1 == x2 && typeEq(t1, t2)
+    case (Tmcomb(t11, t12), Tmcomb(t21, t22)) => termEq(t11, t21) && termEq(t12, t22)
+    case (Tmabs(t11, t12), Tmabs(t21, t22)) => termEq(t11, t21) && termEq(t12, t22)
 }
