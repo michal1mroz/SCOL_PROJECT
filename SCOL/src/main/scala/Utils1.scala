@@ -259,7 +259,7 @@ object Utils1 {
     }
   }
 
-  def doesExists(tm: Term): (Term, Term) = {
+  def destExists(tm: Term): (Term, Term) = {
     try {
       destCbinder("?")(tm)
     } catch {
@@ -268,11 +268,11 @@ object Utils1 {
   }
 
   def stripExists(tm: Term): (Term, List[Term]) = {
-    unfoldl(doesExists, tm)
+    unfoldl(destExists, tm)
   }
 
   def isExists(tm: Term): Boolean = {
-    can(doesExists, tm)
+    can(destExists, tm)
   }
 
   // Term utilities

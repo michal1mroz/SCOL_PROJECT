@@ -6,6 +6,9 @@ import Utils1.*
 import Lib.*
 import utils.ScolException.ScolFail
 
+import java.math.BigInteger
+import scala.collection.mutable
+
 object Thm {
   sealed trait Thm
   case class Theorem(terms: List[Term], conclusion: Term) extends Thm
@@ -115,5 +118,178 @@ object Thm {
 
 
   // Primitive assertions
+  private val theAxioms: mutable.HashMap[String, Thm] = mutable.HashMap.empty
 
+  def getAxiom(x: String): Thm = {
+    theAxioms.getOrElse(x, throw ScolFail(s"No axiom called $x"))
+  }
+
+  def getAllAxioms: List[(String, Thm)] = {
+    theAxioms.toList
+  }
+
+  def primNewAxiom(x: String, tm: Term): Thm ={
+    require(isBoolTerm(tm), "Term must be a boolean term")
+    require(freeVars(tm).isEmpty, "Free vars not allowed in term arg")
+    require(cannot(getAxiom, x), "Axiom name already used")
+    val th = Theorem(List.empty, tm)
+    theAxioms.put(x, th)
+    th
+  }
+
+  private val theConstDefs: mutable.HashMap[String, Thm] = mutable.HashMap.empty
+
+  def getConstDefinition(x: String): Thm = {
+    theConstDefs.getOrElse(x, throw ScolFail(s"No definition for constant $x"))
+  }
+
+  def getAllConstDefinitions: List[(String, Thm)] = {
+    theConstDefs.toList
+  }
+
+  def primNewConstDefinition(x: String, tm: Term): Thm = {
+    val ty = typeOf(tm)
+    require(freeVars(tm).isEmpty, "Free vars not allowed in definition term")
+    require(subset_(typeEq.curried, termTyvars(tm), typeTyVars(ty)), "Definition term contains tyvars not at top level")
+    primNewConst(x, tm.asInstanceOf[HolType]) // Polymorphism has some problems here :<
+    val c = mkGconst(x)
+    val th = Theorem(List.empty, mkEq(c, tm))
+    theConstDefs.put(x, th)
+    th
+  }
+
+  private val theConstSpecs: mutable.HashMap[List[String], (Thm, Thm)] = mutable.HashMap.empty
+  private val theConstSpecNames: mutable.HashMap[String, List[String]] = mutable.HashMap.empty
+
+  def getConstSpecificationInfo(x: String): ((List[String], Thm), Thm) = {
+    try{
+      val xs = theConstSpecNames.getOrElse(x, throw ScolFail("Const spec name not found"))
+      val th = theConstSpecs.getOrElse(xs, throw ScolFail("Const Specs not found"))// Don't know, it doesn't want to work otherwise
+      ((xs, th._1), th._2)
+    }catch{
+      case _: ScolFail =>
+        if(isConstName(x)){
+          throw ScolFail(s"No specification for constant $x")
+        }else{
+          throw ScolFail(s"No constant called $x")
+        }
+    }
+  }
+
+  def getAllConstSpecificationInfo: List[((List[String], Thm), Thm)] = {
+    val xtts = theConstSpecs.toList
+
+    def remapTuple: ((List[String], (Thm, Thm))) => ((List[String], Thm), Thm) = {
+      case (x, (y, z)) => ((x, y), z)
+    }
+    map[(List[String], (Thm, Thm)), ((List[String], Thm), Thm)](remapTuple, xtts)
+  }
+
+  def getConstSpecification(x: String): Thm = {
+    try{
+      snd(getConstSpecificationInfo(x))
+    }catch{
+      case _: ScolFail => throw ScolFail("Failed retrieving const specification")
+    }
+  }
+
+  def getAllConstSpecifications: List[(List[String], Thm)] = {
+    try{
+      fstMap(fst[List[String], Thm], getAllConstSpecificationInfo)
+    }catch{
+      case _: ScolFail => throw ScolFail("Failed retrieving all const specifications")
+    }
+  }
+
+  def primNewConstSpecification(xs: List[String], th: Thm): Thm= {
+    val (hs, c) = destThm(th.asInstanceOf[Theorem])
+    val (tm0, vs0) = stripExists(c)
+    require(hs.isEmpty , "Assumptions not allowed")
+    require(freeVars(c).isEmpty, "Free vars in conclusion")
+    require(xs.nonEmpty, "Name list must be non-empty")
+    val length_big_int = BigInteger.valueOf(xs.length)
+    val (vs, vs1): (List[Term], List[Term]) = try1(cutBigInt.curried(length_big_int), vs0, "Name list longer than existential var list"): @unchecked // Not safe :<
+    require(noDups(xs), "Name list not distinct")
+    val tm1 = listMkExists(vs1, tm0)
+    val tyvs1 = termTyvars(tm1)
+    val (tyvs, tyvss) = hdTl(map(termTyvars, vs))
+    val setEqual = setEq_[HolType].curried
+    require(forall(setEqual(typeEq.curried)(tyvs), tyvss), "Each outer-existential var must have same tyvars")
+    require(subset_(typeEq.curried, tyvs1, tyvs), "Existential body contains tyvars not in var list")
+    def not(x: Boolean): Boolean = !x
+    try{
+      assert(forall(isConstName.andThen(not), xs))
+    }catch{
+      case _: AssertionError =>
+        val x = find(isConstName, xs)
+        throw ScolFail(s"Constant name $x already used")
+    }
+    val tys = map(typeOf, vs)
+    doMap[(String, HolType)](primNewConst, zip(xs, tys))
+    val cs = map(mkGconst, xs)
+    val theta = zip(vs, cs)
+    val th1 = Theorem(List.empty, varInst(theta, tm1))
+    println("Adding specification for constant")
+    theConstSpecs.put(xs, (th, th1))
+    def insertMap(x: String): Unit = theConstSpecNames.put(x, xs)
+    doMap(insertMap, xs)
+    th1
+  }
+
+  private val theTyconsDefs: mutable.HashMap[String, (Thm, Thm)] = mutable.HashMap.empty
+
+  private def getTyconstDefinitionInfo0(x: String): (Thm, Thm) = {
+    try{
+      theTyconsDefs.getOrElse(x, throw ScolFail("Failed retrieving const"))
+    }catch{
+      case _: ScolFail =>
+        assert1(isTyconstName(x), s"No type constant called $x")
+        throw ScolFail(s"No type definition for type constant $x")
+    }
+  }
+
+  def getTyconstDefinitionInfo(x: String): (Thm, Thm) = {
+    getTyconstDefinitionInfo0(x)
+  }
+
+  def getAllTyconstDefinitionInfo: List[(String, (Thm, Thm))] = {
+    theTyconsDefs.toList
+  }
+
+  def getTyconstDefinition(x: String): Thm = {
+    snd(getTyconstDefinitionInfo0(x))
+  }
+
+  def getAllTyconstDefinitions: List[(String, Thm)] = {
+    val xthths = theTyconsDefs.toList
+
+    def fun: ((String, (Thm, Thm))) => (String, Thm) = {
+      case (x, (y, z)) => (x, y)
+    }
+    map[(String, (Thm, Thm)), (String, Thm)](fun, xthths)
+  }
+
+  def primNewTyconstDefinition(x: String, t0: Thm): Thm = {
+    val hs0 = asms(t0.asInstanceOf[Theorem])
+    val c0 = concl(t0.asInstanceOf[Theorem])
+
+    val (v, pv) = try1(destExists, c0, "Thm arg must match '?x. P x'")
+    val (p, v1) = try1(destComb, pv, "Thm arg must match '?x. P x'")
+    require(termEq(v1, v), "Thm arg must match '?x. P x'")
+    require(hs0.isEmpty, "Asms not allowed in thm arg")
+    require(freeVars(p).isEmpty, "Free vars not allowed in thm arg characteristic function")
+
+    val ty0 = typeOf(v)
+    val tyvs = mergesort(typeLt.curried, termTyvars(p))
+    val lengthBigInt = BigInteger.valueOf(tyvs.length)
+    try2(primNewTyconst.curried(x), lengthBigInt)
+
+    val ty = mkCompType(x, tyvs)
+    val f = mkVar("f", mkFunType(ty, ty0))
+    val tdef = mkIconst("TYPE_DEFINITION", List((aTy, ty0), (bTy, ty)))
+    val th = Theorem(List.empty, mkExists(f, listMkComb(tdef, List(p, f))))
+    println("Adding definition for type constant")
+    theTyconsDefs.put(x, (t0, th))
+    th
+  }
 }

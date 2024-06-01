@@ -71,6 +71,12 @@ object Type {
   //fixme don't know how to define them
 //  def typeLt(x: HolType, y: HolType): Boolean = x.toString < y.toString
 
+  def typeLt(x: HolType, y: HolType): Boolean = (x, y) match {
+    case (Tycomp(name1, _), Tycomp(name2, _)) => name1 < name2
+    case (Tyvar(name1), Tyvar(name2)) => name1 < name2
+    case _ => false
+  }
+
   def mkFunType(ty1: HolType, ty2: HolType): HolType = Tycomp("->", List(ty1, ty2))
 
   def destFunType(ty: HolType): (HolType, HolType) = ty match {
