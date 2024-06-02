@@ -1,7 +1,9 @@
 package main.scala
 
 import Reader.{Reader, |||}
-import main.scala.utils.ScolException.ReaderFail
+import main.scala.Lexer.Token
+import main.scala.Parser.syntaxError
+import main.scala.utils.ScolException.{ReaderFail, ScolError}
 
 import scala.annotation.targetName
 
@@ -24,12 +26,12 @@ object Reader {
           }
     }
 
-    @targetName("@:")
-    infix def @:[A, B, C](f : B => C, readFn : Reader[A, B]): Reader[A, C] = {
-      src =>
-        val (x1, src1) = readFn(src)
-        (f(x1), src1)
-    }
+//    @targetName("@:")
+//    infix def @:[A, B, C](f : B => C, readFn : Reader[A, B]): Reader[A, C] = {
+//      src =>
+//        val (x1, src1) = readFn(src)
+//        (f(x1), src1)
+//    }
 
     @targetName("@!:")
     infix def @!:[A, B](f: B => String, readFn: Reader[A, B], src : A): String = {
@@ -138,5 +140,21 @@ object Reader {
           val (x2, src2) = readFn2(x1)(src1)
           (x2, src2)
       }
+
+      @targetName("/!")
+      infix def /![C](msg: String, src : A): (B, A)  = {
+        try {
+          readFn1(src)
+        }
+        catch
+          case _ : ReaderFail => throw syntaxError(msg)
+      }
+
+//      @targetName("/!!")
+//      infix def /!![C](errFn: A => A): Reader[A , B | ScolError] = {
+////        val x = syntaxError
+////        readFn1 |||
+////          syntaxError[A] @: (src : A) => (errFn(src), src)
+//      }
     }
 }

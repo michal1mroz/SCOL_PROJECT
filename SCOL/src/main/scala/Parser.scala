@@ -110,32 +110,25 @@ object Parser {
   val parseStart: Reader[List[Token], Unit] = readStart
   val parseEnd: Reader[List[Token], Unit] = readEnd
 
-  def parseEqualsKwd: Reader[List[Token], String] = @:(tokenName, readElemWith(isEqkwdToken))
+//  def parseEqualsKwd: Reader[List[Token], String] = @:(tokenName, readElemWith(isEqkwdToken))
 
-  def parseNameWith(testFn: Token => Boolean): Reader[List[Token], String] = @:(tokenName, readElemWith(testFn))
+//  def parseNameWith(testFn: Token => Boolean): Reader[List[Token], String] = @:(tokenName, readElemWith(testFn))
 
-  def parseResword(x: String): Reader[List[Token], String] =
-    parseNameWith(isReswordTokenIn(Set(x)))
-
-  def parseReswordIn(xs: Set[String]): Reader[List[Token], String] =
-    parseNameWith(isReswordTokenIn(xs))
-
-  def parseReswordNotIn(xs: Set[String]): Reader[List[Token], String] =
-    parseNameWith(isReswordTokenNotIn(xs))
+//  def parseResword(x: String): Reader[List[Token], String] =
+//    parseNameWith(isReswordTokenIn(Set(x)))
+//
+//  def parseReswordIn(xs: Set[String]): Reader[List[Token], String] =
+//    parseNameWith(isReswordTokenIn(xs))
+//
+//  def parseReswordNotIn(xs: Set[String]): Reader[List[Token], String] =
+//    parseNameWith(isReswordTokenNotIn(xs))
 
   // Syntax Error Support
 
   // Error Raising Function
-  def syntaxError(x: Any): ScolError = ScolError(s"SYNTAX ERROR:", x.toString)
+  def syntaxError[A](x: A): ScolError = ScolError(s"SYNTAX ERROR: ", x.toString)
 
-  // Error Combinators
-  def /![A](parseFn: Reader[List[Token], A], msg: String, src: List[Token]): (A, List[Token]) =
-    try parseFn(src)
-    catch {
-      case _: ReaderFail => throw syntaxError(msg)
-    }
-
-//  def ||![A](parseFn: Reader[List[Token], A], errFn: List[Token] => A): Reader[List[Token], A] = 
+//  def ||![A](parseFn: Reader[List[Token], A], errFn: List[Token] => A): Reader[List[Token], A] =
 //    parseFn ||| @:(syntaxError, src => (errFn(src), src))
 //
   // Utility

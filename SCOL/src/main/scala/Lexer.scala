@@ -5,6 +5,7 @@ import main.scala.Reader.*
 import main.scala.Lib.{charImplode, intOfString}
 import main.scala.Names.{isAlphanumChar1, isAlphanumChar2, isDigit, isEnumBracket, isKeyword, isNumeric, isPunctuationChar, isSymbolicChar, isUnprintableChar, isWhitespaceChar}
 import main.scala.utils.ScolException.{LexFail, ReaderFail}
+import main.scala.utils.HelperType.*
 
 import scala.annotation.targetName
 import scala.language.postfixOps
@@ -65,73 +66,72 @@ object Lexer {
 
       def punctuationReader: Reader[List[Char], Token] = {
 
-        @:((c : Char) => {
+        {(c : Char) => {
           if (dfx || vmrk != NoMark)
             throw LexFail(s"Cannot mark reserved word '$c'")
           else
-            ReswordTok(c.toString)
-        }, lexCharWith(isPunctuationChar))
+            ReswordTok(c.toString) : Token
+        } : Token} @: lexCharWith(isPunctuationChar)
 
       }
 
       def alphanumReader: Reader[List[Char], Token] = {
-        @:[List[Char], (Char, List[Char]), Token ] (
-          (c : Char, cs : List[Char]) => {
-          val x = (c :: cs).mkString
-          if (isKeyword(x) || isEnumBracket(x))
-            if (dfx || vmrk != NoMark) {
-              throw LexFail(s"Cannot mark reserved word '$x'")
-            }else{
-              ReswordTok(x)
-            }
-          else
-            IdentTok(dfx, vmrk, x)
-        },
-            lexCharWith(isAlphanumChar1) >>> lexList(0, lexCharWith(isAlphanumChar2)))
+        ((c : Char, cs : List[Char]) => {
+        val x = (c :: cs).mkString
+        if (isKeyword(x) || isEnumBracket(x))
+          if (dfx || vmrk != NoMark) {
+            throw LexFail(s"Cannot mark reserved word '$x'")
+          }else{
+            ReswordTok(x) : Token
+          }
+        else
+          IdentTok(dfx, vmrk, x) : Token
+      } : Token) @:
+          (lexCharWith(isAlphanumChar1) >>> lexList(0, lexCharWith(isAlphanumChar2)))
       }
 
       def numericReader: Reader[List[Char], Token] = {
-        @:[List[Char], (Char, List[Char]), Token](
-          (c: Char, cs: List[Char]) => {
+
+        ((c: Char, cs: List[Char]) => {
             val x = (c :: cs).mkString
             if (!isNumeric(x))
               throw LexFail(s"Non numeric character $c in numeric token $x")
             else if (vmrk == TmvarMark)
               throw LexFail("Cannot mark numeric with '%'")
-            else NumericTok(dfx, vmrk ,x)
-          },
-            lexCharWith(isDigit) >>> lexList(0, lexCharWith(isAlphanumChar2)))
+            else NumericTok(dfx, vmrk, x): Token
+          } : Token) @:
+            {lexCharWith(isDigit) >>> lexList(0, lexCharWith(isAlphanumChar2))}
       }
 
       def symbolicReader: Reader[List[Char], Token] = {
-        @:[List[Char], List[Char], Token](
+        (
           (cs: List[Char]) => {
             val x = cs.mkString
             if (isKeyword(x) || isEnumBracket(x))
               if (dfx || vmrk != NoMark)
                 throw LexFail(s"Cannot mark reserved word '$x'")
               else
-                ReswordTok(x)
+                ReswordTok(x) : Token
             else
-              IdentTok(dfx, vmrk, x)
-          },
-          lexList(1, lexCharWith(isSymbolicChar)))
+              IdentTok(dfx, vmrk, x) :Token
+          } : Token) @:
+          lexList(1, lexCharWith(isSymbolicChar))
       }
 
       def quoteReader: Reader[List[Char], Token] = {
         val List1 = List('\\', '"')
         val List2 = List('"')
         val List3 = List('\\')
-        @:[List[Char], List[Char], Token](
+        (
           (cs : List[Char]) => {
             val x = cs.mkString
             IdentTok(dfx, vmrk, x)
-          },
-          lexCharIn(List2) *>>
+          }) @:
+            (lexCharIn(List2) *>>
             lexList(0,
               lexCharNotIn(List1) |||
                 (lexCharIn(List3) *>> (lexCharIn(List1)  |||
-                @:(helper2, helper1)))
+                (helper2 @: helper1)))
             ) >>*
             /+(lexCharIn(List2), "Missing closing '\"'"))
       }
