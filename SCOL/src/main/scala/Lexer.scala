@@ -139,12 +139,16 @@ object Lexer {
 
       def defixReader : Reader[List[Char], Token] = {
         lexCharIn(List('$')) *>>
-          (if (vmrk != NoMark)
+          {
+            if (vmrk != NoMark)
+            src=>
             throw LexFail("Defixifing mark ($) must precede any var mark (' or %) in token")
-          else if (dfx)
+          else if (dfx) {
+            src =>
             throw LexFail("Defixing mark ($) cannot be repeated in token")
+          }
           else
-            lexToken0(true, vmrk))
+            lexToken0(true, vmrk)}
       }
 
       // term/type var mark
@@ -165,7 +169,6 @@ object Lexer {
               throw LexFail("Defix mark ($) must immidiatly precede name, without space")
           else if (vmrk != NoMark)
             (src) =>
-//              println("DFX: " + dfx + "SRC: " + src)
               throw LexFail("Var marks (' or %) must immediately precede name, without space")
 
           else
@@ -187,7 +190,7 @@ object Lexer {
         numericReader |||
       symbolicReader |||
         quoteReader |||
-//        defixReader |||
+        defixReader |||
         ttVarmark |||
         remainingErrs
   }
