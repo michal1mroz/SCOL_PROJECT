@@ -135,9 +135,9 @@ object Parser {
       case _: ReaderFail => throw syntaxError(msg)
     }
 
-  def ||![A](parseFn: Reader[List[Token], A], errFn: List[Token] => A): Reader[List[Token], A] = 
-    parseFn ||| @:(syntaxError, src => (errFn(src), src))
-
+//  def ||![A](parseFn: Reader[List[Token], A], errFn: List[Token] => A): Reader[List[Token], A] = 
+//    parseFn ||| @:(syntaxError, src => (errFn(src), src))
+//
   // Utility
   def ored(items: List[() => String]): () => String =
     () => items.map(_()).mkString(" or ")

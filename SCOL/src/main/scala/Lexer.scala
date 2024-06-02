@@ -20,7 +20,7 @@ object Lexer {
 
 
   @targetName("/+")
-  def /+[A](reader: Reader[List[Char], A], msg: String)(input: List[Char]): (A, List[Char]) = {
+  private def /+[A](reader: Reader[List[Char], A], msg: String)(input: List[Char]): (A, List[Char]) = {
     Try(reader(input)) match {
       case Success(value) => value
       case Failure(_) => throw LexFail(msg)
@@ -92,14 +92,14 @@ object Lexer {
 
       def numericReader: Reader[List[Char], Token] = {
         @:[List[Char], (Char, List[Char]), Token](
-          ((c: Char, cs: List[Char]) => {
+          (c: Char, cs: List[Char]) => {
             val x = (c :: cs).mkString
             if (!isNumeric(x))
               throw LexFail(s"Non numeric character $c in numeric token $x")
             else if (vmrk == TmvarMark)
               throw LexFail("Cannot mark numeric with '%'")
             else NumericTok(dfx, vmrk ,x)
-          }),
+          },
             lexCharWith(isDigit) >>> lexList(0, lexCharWith(isAlphanumChar2)))
       }
 
@@ -161,9 +161,12 @@ object Lexer {
 
       def remainingErrs : Reader[List[Char], Token] = {
           if (dfx)
-            throw LexFail("Defix mark ($) must immidiatly precede name, without space")
+            (src) =>
+              throw LexFail("Defix mark ($) must immidiatly precede name, without space")
           else if (vmrk != NoMark)
-            throw LexFail("Var marks (' or %) must immediately precede name, without space")
+            (src) =>
+//              println("DFX: " + dfx + "SRC: " + src)
+              throw LexFail("Var marks (' or %) must immediately precede name, without space")
 
           else
             lexCharWith(
@@ -185,7 +188,7 @@ object Lexer {
       symbolicReader |||
         quoteReader |||
 //        defixReader |||
-//        ttVarmark |||
+        ttVarmark |||
         remainingErrs
   }
 
