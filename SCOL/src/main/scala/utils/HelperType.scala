@@ -7,7 +7,7 @@ import scala.annotation.targetName
 object HelperType {
 
   type func[A, B] = A => B
-  
+
   extension[A, B] (f : func[A, B]) {
     @targetName("@:")
     infix def @:[C](readFn : Reader[C, A]) : Reader[C, B] = {
@@ -16,4 +16,5 @@ object HelperType {
         (f(x1), src1)
     }
   }
+
 }

@@ -34,7 +34,7 @@ object Reader {
 //    }
 
     @targetName("@!:")
-    infix def @!:[A, B](f: B => String, readFn: Reader[A, B], src : A): String = {
+    infix def @!:[A, B](f: B => String, readFn: Reader[A, B], src: A):  String = {
       val (x1, src1) = readFn(src)
       f(x1)
     }
@@ -150,6 +150,7 @@ object Reader {
           case _ : ReaderFail => throw syntaxError(msg)
       }
 
+
 //      @targetName("/!!")
 //      infix def /!![C](errFn: A => A): Reader[A , B | ScolError] = {
 ////        val x = syntaxError
@@ -157,4 +158,5 @@ object Reader {
 ////          syntaxError[A] @: (src : A) => (errFn(src), src)
 //      }
     }
-}
+
+  }
