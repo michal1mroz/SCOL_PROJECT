@@ -26,17 +26,18 @@ object Reader {
           }
     }
 
-//    @targetName("@:")
-//    infix def @:[A, B, C](f : B => C, readFn : Reader[A, B]): Reader[A, C] = {
-//      src =>
-//        val (x1, src1) = readFn(src)
-//        (f(x1), src1)
-//    }
+    @targetName("@:")
+    def @:[A, B, C](f : B => C, readFn : Reader[A, B]): Reader[A, C] = {
+      src =>
+        val (x1, src1) = readFn(src)
+        (f(x1), src1)
+    }
 
     @targetName("@!:")
-    infix def @!:[A, B](f: B => String, readFn: Reader[A, B], src: A):  String = {
-      val (x1, src1) = readFn(src)
-      f(x1)
+    infix def @!:[A, B](f: B => String, readFn: Reader[A, B]): A => String = {
+      (src : A) => 
+        val (x1, src1) = readFn(src)
+        f(x1)
     }
 
     def lookahead[A, B](readFn : Reader[A, B]) : Reader[A, B] = {

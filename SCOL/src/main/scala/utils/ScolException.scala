@@ -20,7 +20,7 @@ object ScolException extends Exception{
   case class ScolError(err: String, msg: String) extends RuntimeException(s"[SC] $err: $msg")
 
   // fixme throw an error again better stick to `throw ScolError(err, msg)`
-  def scolError(err: String, msg: String): Nothing = throw ScolError(err, msg)
+  def scolError(err: String, msg: String): ScolError = ScolError(err, msg)
 
   def scolWarn(msg : String) : Unit = println("WARNING: " + msg)
   def scolReport(msg : String) : Unit = println("REPORT: " + msg)
@@ -33,9 +33,9 @@ object ScolException extends Exception{
   }
 
 
-  def internalError(func: String): Nothing = scolError("INTERNAL ERROR", func)
+  def internalError(func: String): ScolError = scolError("INTERNAL ERROR", func)
 
-  def buildError(msg: String): Nothing = scolError("BUILD ERROR", msg)
+  def buildError(msg: String): ScolError = scolError("BUILD ERROR", msg)
 
   case object LocalFail extends RuntimeException
 
