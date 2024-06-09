@@ -151,19 +151,13 @@ object Parser {
     }
   }
 
-  // I have no clue how to do this one
   extension[A, B](parseFn: Reader[A, B]) {
     @targetName("/|/!")
     infix def /|/![C](errFn: A => String) : Reader[A, B] = {
-//      parseFn
         parseFn |||
           (syntaxErrorTh @: ((src : A) => (errFn(src), src)))
     }
   }
-
-  //infix def ||![A](parseFn: Reader[List[Token], A], errFn: List[Token] => A): A=
-  //  val an: List[Token] => (A, List[Token]) = src => (errFn(src), src)
-  //  parseFn ||| syntaxError @! an
 
   // Utility
   private def ored(items: List[() => String]): () => String =
@@ -271,38 +265,41 @@ object Parser {
     parseResword(br1) *>> parseListD0(n, item, br1, sep, br2, parseFn)
   }
 
-  sealed trait InfixElem[+A, +B]
+  sealed trait InfixElem[A, B]
 
-  case class InfixOp[A](op: A) extends InfixElem[A, Nothing]
+  case class InfixOp[A, B](op: A) extends InfixElem[A, B]
 
-  case class InfixArg[B](arg: B) extends InfixElem[Nothing, B]
+  case class InfixArg[A, B](arg: B) extends InfixElem[A, B]
 
-  private def buildRevpolishStep[A, B, C, D](form: String, nameFn: C => String)(elems: List[InfixElem[A, B]], fnhs: List[(C, Int, AssocHand)])
-                                      (fnh : (C, Int, AssocHand), expr : D) = {
-    val (f, n, h) = fnh
-    val foo = (f1: C, n1: Int, h1: AssocHand) => n < n1 || (n == n1 && (if (h == NonAssoc) {
-      throw syntaxError("Missing bracket for non-associative " + form + " " + quote(nameFn(f1)))
+  private def buildRevpolishStep[A, B, C : Ordering](form: String, nameFn: A => String)(elems: List[InfixElem[A, B]], fnhs: List[(A, C, AssocHand)])
+                                      (fnh : (A, C, AssocHand), expr : B): (List[InfixElem[A, B]], List[(A, C, AssocHand)]) = {
+    val ordering = implicitly[Ordering[C]]
+    val (f : A, n : C, h : AssocHand) = fnh
+    val foo = (f1: A, n1: C, h1: AssocHand) => ordering.lt(n, n1) || (n == n1 && (if (h == NonAssoc) {
+      throw syntaxError("Missing bracket for non-associative " + form + " " + nameFn(f1))
     } else h == LeftAssoc))
     val (fnhs1, fnhs2) = fnhs.span(foo.tupled)
-    val y = InfixArg(expr)
-    val gs1 = fnhs1.map { case (f, _, _) => InfixOp(f) }
-    val elems1 = y :: gs1.reverse ::: elems
+    val y : InfixElem[A, B] = InfixArg(expr)
+    val gs1 : List[InfixElem[A, B]] = fnhs1.map { case (f, _, _) => InfixOp(f) }
+    val elems1 : List[InfixElem[A, B]] = y :: (gs1.reverse ::: elems)
     val fnhs3 = (f, n, h) :: fnhs2
     (elems1, fnhs3)
   }
 
-//  private def buildRevpolish[A, B](form: String, nameFn: A => String)(expr0: B, fexprs: List[(A,A)]) = {
-//    val a0 = (List(InfixArg(expr0)), List() : List[(A, Int, AssocHand)])
-//    val (elems, fnhs) = fexprs.foldLeft(a0)(buildRevpolishStep(form, nameFn))
-//    val gs = fnhs.map { case (f, _, _) => InfixOp(f) }
-//    gs.reverse ::: elems
-//  }
-  def buildRevpolish[A, B, C, F, D](form: String, nameFn: A => String)(expr0: B, fexprs: List[((A,C, F), D)]) = ???
+  def buildRevpolish[A, B, C : Ordering](form: String, nameFn: A => String)(expr0: B, fexprs: List[((A, C, AssocHand), B)]): List[InfixElem[A, B]] = {
+    val a0 = (List(InfixArg(expr0)): List[InfixElem[A, B]], Nil: List[(A, C, AssocHand)])
+    val (elems, fnhs) = fexprs.foldLeft(a0) { (acc, fnhexpr) =>
+      buildRevpolishStep(form, nameFn)(acc._1, acc._2)(fnhexpr._1, fnhexpr._2)
+    }
+    val gs : List[InfixElem[A, B]] = fnhs.map { case (f, _, _) => InfixOp(f) }
+    gs.reverse ::: elems
+  }
+
 
   private def buildInfixExpr[A, B](mkBinFn: (A, B, B) => B)(ys: List[InfixElem[A, B]]): (B, List[InfixElem[A, B]]) = ys match {
-    case InfixOp(f) :: ys0 =>
-      val (expr1, ys1) = buildInfixExpr(mkBinFn)(ys0)
-      val (expr2, ys2) = buildInfixExpr(mkBinFn)(ys1)
+    case InfixOp(f) :: (ys0 : List[InfixElem[A, B]]) =>
+      val (expr1, ys1) = buildInfixExpr[A, B](mkBinFn).apply(ys0) // weird behaviour. I have to manually specify the type parameters for it to work.
+      val (expr2, ys2 : List[InfixElem[A, B]]) = buildInfixExpr[A, B](mkBinFn)(ys1)
       (mkBinFn(f, expr2, expr1), ys2)
     case InfixArg(expr) :: ys0 =>
       (expr, ys0)
@@ -334,8 +331,9 @@ object Parser {
       ))
   }
 
-  def parseInfixExpr[A, B, C : Ordering, D, E, F](form: String, nameFn: A => String)(parseFn: Reader[List[Token], B],
-                                                              parseOpFn: Reader[List[Token], (A, C, D)], mkBinFn: (A, B, B) => B)
+  // change D to AssocHand
+  def parseInfixExpr[A, B, C : Ordering, E, F](form: String, nameFn: A => String)(parseFn: Reader[List[Token], B],
+                                                              parseOpFn: Reader[List[Token], (A, C, AssocHand)], mkBinFn: (A, B, B) => B)
                           (e0: B, src: List[Token]): (B, List[Token]) = {
     val pF = parseInfixExpr0(form, nameFn)(parseFn, parseOpFn)
     val (fes, src1) = pF(src)
@@ -344,7 +342,6 @@ object Parser {
     assert(ys1.isEmpty, "parseInfixExpr")
     (e, src1)
   }
-
 
   private def parseInfixTyconst: Reader[List[Token], (String, Int, AssocHand)] = {
     { x =>
@@ -390,10 +387,6 @@ object Parser {
 //      ((pty) =>
 //        (xs : List[String]) => foldl((pty1 : Pretype, x : String) => Ptycomp(x, List(pty1)))(pty)(xs) @:
 //        parseList(1, parseNonfixTyconst))
-//  }
-
-//  def parsePretype0 = {
-//    (parsePretype1 /|/! (@!:((x) => "Missing LHS for infix type " + x.toString), parseNameWith(isInfixTyconstToken)))
 //  }
 
   def parsePretype1 : Reader[List[Token], Pretype] = ???
