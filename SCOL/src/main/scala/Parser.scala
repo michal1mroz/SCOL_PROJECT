@@ -297,7 +297,7 @@ object Parser {
 //    val gs = fnhs.map { case (f, _, _) => InfixOp(f) }
 //    gs.reverse ::: elems
 //  }
-  def buildRevpolish[A, B](form: String, nameFn: A => String)(expr0: B, fexprs: List[(A,A)]) = ???
+  def buildRevpolish[A, B, C, F, D](form: String, nameFn: A => String)(expr0: B, fexprs: List[((A,C, F), D)]) = ???
 
   private def buildInfixExpr[A, B](mkBinFn: (A, B, B) => B)(ys: List[InfixElem[A, B]]): (B, List[InfixElem[A, B]]) = ys match {
     case InfixOp(f) :: ys0 =>
@@ -315,9 +315,9 @@ object Parser {
     parseList.curried(1)(parseOpFn >@> (_ => parseFn))
   }
 
-  def parseInfixExpr[A, B](form: String, nameFn: A => String)(parseFn: () => B,
-                                                              parseOpFn: () => (A, Int, Int), mkBinFn: (A, B, B) => B)
-                          (e0: B, src: List[(A, Int, Int)]): (B, List[(A, Int, Int)]) = {
+  def parseInfixExpr[A, B, C, D, E, F](form: String, nameFn: A => String)(parseFn: Reader[List[Token], D],
+                                                              parseOpFn: Reader[List[Token], (A, E, F)], mkBinFn: (A, B, B) => B)
+                          (e0: B, src: List[Token]): (B, List[Token]) = {
     val (fes, src1) = parseInfixExpr0(form, nameFn)(parseFn, parseOpFn)(src)
     val ys = buildRevpolish(form, nameFn)(e0, fes)
     val (e, ys1) = buildInfixExpr(mkBinFn)(ys)
@@ -377,10 +377,11 @@ object Parser {
 //  }
 
   def parsePretype1 : Reader[List[Token], Pretype] = ???
-  def parsePretype0 : Reader[List[Token], Pretype] = {
-    parsePretype1 /|/! (@!:((x) => "Missing LHS for infix type " +  x , parseNameWith(isInfixTyconstToken)))
-    |@|
-      (parseInfixExpr("infix type", idFn[String])(parsePretype1, parseInfixTyconst, mkBinPretype))
+  def parsePretype0: Reader[List[Token], Pretype] = {
+    (src : List[Token]) =>
+      ((parsePretype1 /|/! (@!:((x) => "Missing LHS for infix type " +  x , parseNameWith(isInfixTyconstToken))))
+      |@|
+      parseInfixExpr("infix type", idFn[String])(parsePretype1, parseInfixTyconst, mkBinPretype).curried)(src)
   }
 
   private def parsePretype(src: List[Token]): Pretype = {
