@@ -2,6 +2,7 @@ import main.scala.Type
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
 
+
 class TypeTest extends AnyFlatSpec {
 
   "A new type constant" should "be declared successfully" in {
@@ -19,6 +20,51 @@ class TypeTest extends AnyFlatSpec {
     val varType = Type.mkVarType("X")
     Type.isVarType(varType) shouldBe true
     Type.destVarType(varType) shouldBe "X"
+  }
+
+  "Type variables" should "be equall to each other" in {
+    val var1 = Type.mkVarType("X")
+    val var2 = Type.mkVarType("X")
+    Type.typeEq(var1, var2) shouldBe true
+  }
+
+  "Type variables" should "not be equall to each other" in {
+    val var1 = Type.mkVarType("X")
+    val var2 = Type.mkVarType("Y")
+    Type.typeEq(var1, var2) shouldBe false
+  }
+
+  "Compund types" should "be equall to each other" in {
+    val t1 = Type.mkVarType("X")
+    val t2 = Type.mkVarType("Y")
+
+    Type.primNewTyconst("X", 2)
+    val compType1 = Type.mkCompType("X", List(t1, t2))
+    val compType2 = Type.mkCompType("X", List(t1, t2))
+    Type.typeEq(compType1, compType2) shouldBe true
+  }
+
+  /**
+    @FixMe
+    Using constructor directly as mkCompType failes
+   **/
+  "Compund types" should "not be equall to each other" in {
+    val t1 = Type.mkVarType("X")
+    val t2 = Type.mkVarType("Y")
+
+    val compType1 = Tycomp("X", List(t1, t2))
+    val compType2 = Tycomp("Y", List(t1, t2))
+    val compType3 = Tycomp("X", List(t2, t1))
+
+    Type.typeEq(compType1, compType2) shouldBe false
+    Type.typeEq(compType1, compType3) shouldBe false
+  }
+
+  "Different types" should "not be equall to each other" in {
+    val t1 = Type.mkVarType("X")
+    val t2 = Tycomp("X", List(t1))
+
+    Type.typeEq(t1, t2) shouldBe false
   }
 
   it should "throw an exception if not a type variable" in {

@@ -3,7 +3,6 @@ import main.scala.Type.{HolType, Tyvar}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
 
-
 class TermTest extends AnyFlatSpec {
 
   val typ1: HolType = Tyvar("1")

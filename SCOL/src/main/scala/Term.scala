@@ -27,6 +27,7 @@ object Term {
 
   def isConstName(x: String): Boolean = theConsts.contains(x)
 
+  def termEq(t1: Term, t2: Term): Boolean = t1 == t2
   def primNewConst(x: String, ty: HolType): Unit = {
     require(!isConstName(x), s"Constant name $x already used")
     println(s"Declaring constant $x")
