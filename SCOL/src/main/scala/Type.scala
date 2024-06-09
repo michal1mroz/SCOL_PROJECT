@@ -11,7 +11,13 @@ object Type {
 
   case class Tyvar(name: String) extends HolType
 
-  case class Tycomp(name: String, params: List[HolType]) extends HolType
+  case class Tycomp(name: String, params: List[HolType]) extends HolType{
+    override def equals(obj: Any): Boolean = obj match {
+      case that: Tycomp =>
+        this.name == that.name && this.params.length == this.params.length &&
+        this.params == that.params
+    }
+  }
 
   private val theTyconsts: mutable.HashMap[String, Int] = mutable.HashMap.empty
 
@@ -63,6 +69,12 @@ object Type {
   
   //fixme don't know how to define them
 //  def typeLt(x: HolType, y: HolType): Boolean = x.toString < y.toString
+
+  def typeLt(x: HolType, y: HolType): Boolean = (x, y) match {
+    case (Tycomp(name1, _), Tycomp(name2, _)) => name1 < name2
+    case (Tyvar(name1), Tyvar(name2)) => name1 < name2
+    case _ => false
+  }
 
   def mkFunType(ty1: HolType, ty2: HolType): HolType = Tycomp("->", List(ty1, ty2))
 
