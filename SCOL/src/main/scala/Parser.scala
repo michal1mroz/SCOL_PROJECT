@@ -166,10 +166,10 @@ object Parser {
   extension[A, B](parseFn: Reader[A, B]) {
     @targetName("/|/!")
     infix def /|/![C](errFn: A => String) : Reader[A, B] = {
-      try{parseFn}catch
-        case _ => throw ReaderFail("FAIL FAIL FAIL")
-//        parseFn |||
-//          (syntaxErrorTh @: ((src : A) => (errFn(src), src)))
+//      try{parseFn}catch
+//        case _ => throw ReaderFail("FAIL FAIL FAIL")
+        parseFn |||
+          (syntaxErrorTh @: ((src : A) => (errFn(src), src)))
     }
   }
 
@@ -376,6 +376,10 @@ object Parser {
     parseResword("(")
       *>>
       parseItemD(() => "subtype", "(", ",", ")", parsePretype0)
+
+    
+    // fixme fix this one
+
 //      parseItemD(() => "subtype", "(", ",", ")", (parsePretype0 /|/! noCloseErr("(", ")") /|/! earlyReswordErr(List(","), () => "type parameter")))
   }
 
