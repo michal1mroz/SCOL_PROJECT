@@ -321,4 +321,9 @@ object TypeAnal {
     }
   }
 
+  def checkPretype(pty : Pretype) : Pretype = {
+    val _  = pretypeOk(pty)
+    pty
+  }
+
 }

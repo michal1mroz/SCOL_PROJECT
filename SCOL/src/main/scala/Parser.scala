@@ -6,10 +6,14 @@ import main.scala.Type.*
 import main.scala.Term.*
 import main.scala.Reader.*
 import main.scala.utils.HelperType.*
-import main.scala.utils.ScolException.{ReaderFail, ScolError, internalError}
+import main.scala.utils.ScolException.{ReaderFail, ScolError, ScolFail, internalError}
 import main.scala.Lib.*
+import main.scala.Parser./|/!
+import main.scala.Preterm.{Preterm, Pretype, Ptycomp, Ptyvar, mkBinPretype, pretermToTerm, pretypeToType}
+import main.scala.TypeAnal.{checkPretype, detypePreterm, resolvePreterm}
+import main.scala.utils.ScolException
 
-import scala.annotation.targetName
+import scala.annotation.{tailrec, targetName}
 
 object Parser {
   
@@ -113,6 +117,10 @@ object Parser {
   private def parseList[A]: (Int, Reader[List[Token], A]) => Reader[List[Token], List[A]] = readList[List[Token], A]
   val parseStart: Reader[List[Token], Unit] = readStart
   val parseEnd: Reader[List[Token], Unit] = readEnd
+  val parseEnd1: Reader[List[Token], String] = (src) =>
+    val (_, lt) = parseEnd(src)
+    ("", lt)
+
 
   def parseEqualsKwd: Reader[List[Token], String] = tokenName @: readElemWith(isEqkwdToken) // ?????
 
@@ -144,11 +152,12 @@ object Parser {
   }
 
   // I have no clue how to do this one
-  extension(parseFn: Reader[List[Token], String]) {
+  extension[A, B](parseFn: Reader[A, B]) {
     @targetName("/|/!")
-    infix def /|/![C](errFn: List[Token] => String) : Reader[List[Token], String] = {
-        parseFn |||
-          (syntaxErrorTh2 @: ((src : List[Token]) => (errFn(src), src)))
+    infix def /|/![C](errFn: C) : Reader[A, B] = {
+      parseFn
+//        parseFn |||
+//          (syntaxErrorTh2 @: ((src : A) => (errFn(src), src)))
     }
   }
 
@@ -268,11 +277,12 @@ object Parser {
 
   case class InfixArg[B](arg: B) extends InfixElem[Nothing, B]
 
-  private def buildRevpolishStep[A, B](form: String, nameFn: A => String)(elems: List[InfixElem[A, B]], fnhs: List[(A, Int, AssocHand)])(fnh : (A, Int, AssocHand), expr : A) = {
-    val foo = (f1: A, n1: Int, h1: AssocHand) => n < n1 || (n == n1 && (if (h == NonAssoc) {
+  private def buildRevpolishStep[A, B, C, D](form: String, nameFn: C => String)(elems: List[InfixElem[A, B]], fnhs: List[(C, Int, AssocHand)])
+                                      (fnh : (C, Int, AssocHand), expr : D) = {
+    val (f, n, h) = fnh
+    val foo = (f1: C, n1: Int, h1: AssocHand) => n < n1 || (n == n1 && (if (h == NonAssoc) {
       throw syntaxError("Missing bracket for non-associative " + form + " " + quote(nameFn(f1)))
     } else h == LeftAssoc))
-    val (f, n, h) = fnh
     val (fnhs1, fnhs2) = fnhs.span(foo.tupled)
     val y = InfixArg(expr)
     val gs1 = fnhs1.map { case (f, _, _) => InfixOp(f) }
@@ -281,13 +291,13 @@ object Parser {
     (elems1, fnhs3)
   }
 
-  private def buildRevpolish[A, B](form: String, nameFn: A => String)(expr0: B, fexprs: List[(A, Int, AssocHand)]): List[InfixElem[A, B]] = {
-    val (elems, fnhs) = fexprs.foldLeft((List(InfixArg(expr0)): List[InfixElem[A, B]], List.empty[(A, Int, AssocHand)])) {
-      case ((elems, fnhs), fexpr) => buildRevpolishStep(form, nameFn)(elems, fnhs)(fexpr)
-    }
-    val gs = fnhs.map { case (f, _, _) => InfixOp(f) }
-    gs.reverse ::: elems
-  }
+//  private def buildRevpolish[A, B](form: String, nameFn: A => String)(expr0: B, fexprs: List[(A,A)]) = {
+//    val a0 = (List(InfixArg(expr0)), List() : List[(A, Int, AssocHand)])
+//    val (elems, fnhs) = fexprs.foldLeft(a0)(buildRevpolishStep(form, nameFn))
+//    val gs = fnhs.map { case (f, _, _) => InfixOp(f) }
+//    gs.reverse ::: elems
+//  }
+  def buildRevpolish[A, B](form: String, nameFn: A => String)(expr0: B, fexprs: List[(A,A)]) = ???
 
   private def buildInfixExpr[A, B](mkBinFn: (A, B, B) => B)(ys: List[InfixElem[A, B]]): (B, List[InfixElem[A, B]]) = ys match {
     case InfixOp(f) :: ys0 =>
@@ -297,26 +307,12 @@ object Parser {
     case InfixArg(expr) :: ys0 =>
       (expr, ys0)
     case Nil =>
-      throw internalError("buildInfixExpr")
+      throw ReaderFail("buildInfixExpr")
   }
 
-  private def parseInfixExpr0[A, B](form: String, nameFn: A => String)(parseFn: Reader[List[Token], String], parseOpFn: () => (A, Int, Int)): List[(A, Int, Int)] = {
-    parseList.curried(1) {
-      parseOpFn match {
-        case (f1, n1, _) =>
-          val item: ((String, A)) => String = {
-            case (h, f) => s"$h for $form ${quote(nameFn(f))}"
-          }
-          val item1: () => String = () => item("RHS", f1)
-          parseFn
-            /|/! endOfQtnErr(List(item1))
-            /|/! (@!:(parseOpFn match {
-            case (f2, n2, _) => if (n1 >= n2) (_) => "Missing " + item("RHS", f1) else _ => "Missing " + item("LHS", f2)
-          }),
-            parseOpFn)
-            /|/! hitReswordInsteadErr(List(), List(item1))
-      }
-    }
+  private def parseInfixExpr0[A, B, C, D](form: String, nameFn: A => String)(parseFn: Reader[List[Token], B], parseOpFn: Reader[List[Token], (A, C, D)])
+  : Reader[List[Token], List[((A, C, D), B)]] = {
+    parseList.curried(1)(parseOpFn >@> (_ => parseFn))
   }
 
   def parseInfixExpr[A, B](form: String, nameFn: A => String)(parseFn: () => B,
@@ -330,4 +326,97 @@ object Parser {
   }
 
 
+  private def parseInfixTyconst: Reader[List[Token], (String, Int, AssocHand)] = {
+    { x =>
+      val (n, h) = getInfixTypeInfo(x)
+      (x, n, h)
+    } @: parseNameWith(isInfixTyconstToken)
+  }
+
+  private def parseNonfixTyconst: Reader[List[Token], String] =
+    parseNameWith(isNonfixTyconstToken) /|/!
+      @!: ({ x =>
+        s"Unexpected type variable ${x.toString} instead of type constant"
+      }, parseNameWith(isTyvarToken) )
+
+//  private def parsePretype2[A] : Reader[A, (String, List[Token])] = {
+//    ({ x => Ptyvar(x) } @: parseNameWith(isTyvarToken))|||
+//      ( { x => Ptycomp(x, List()) } @: parseNameWith(isNonfixTyconstToken))|||
+//      (parseResword("(") *>>
+//         parseItemD(() => "subtype", "(", ",", ")", (parsePretype0 /|/! noCloseErr("(", ")")
+//                                                                   /|/! earlyReswordErr(List(","), () => "type parameter")))
+//        *@> ((pty) =>
+//           ((_) => pty) @: parseReswordD("(", ",", ")", ")")
+//            |||
+//            ((ptys, x) => Ptycomp(x, pty::ptys)) @: (parseReswordD("(", ",", ")", ",")
+//              *>> parseListD0(1, ()=>"type parameter", "(", ",", ")", parsePretype0)
+//              >>> parseItemB(()=>"type constant", (parseNonfixTyconst /|/!
+//              (((x) => "Type constant " + x + " is not nonfix")
+//              @!: parseNameWith(isInfixTypeToken))))))
+//        )
+//    |||
+//      ((x) =>
+//        syntaxError("Term variable " + x + " encountered in type") @:
+//          (parseNameWith(({
+//            case IdentTok(_, TmvarMark, _) => true
+//            case _ => false
+//          })))
+//        )
+//  }
+
+
+//  def parsePretype1: Reader[Pretype, (String, List[Token])] = {
+//    parsePretype2 |@|
+//      ((pty) =>
+//        (xs : List[String]) => foldl((pty1 : Pretype, x : String) => Ptycomp(x, List(pty1)))(pty)(xs) @:
+//        parseList(1, parseNonfixTyconst))
+//  }
+
+//  def parsePretype0 = {
+//    (parsePretype1 /|/! (@!:((x) => "Missing LHS for infix type " + x.toString), parseNameWith(isInfixTyconstToken)))
+//  }
+
+  def parsePretype1 : Reader[List[Token], Pretype] = ???
+  def parsePretype0 : Reader[List[Token], Pretype] = {
+    parsePretype1 /|/! (@!:((x) => "Missing LHS for infix type " +  x , parseNameWith(isInfixTyconstToken)))
+    |@|
+      (parseInfixExpr("infix type", idFn[String])(parsePretype1, parseInfixTyconst, mkBinPretype))
+  }
+
+  private def parsePretype(src: List[Token]): Pretype = {
+    try {
+      (/!(parseStart, "Empty type quotation")
+        *>> (parsePretype0 /|/! hitReswordErr(leadingTypeReswords, () => "at start of type"))
+        >>* (parseEnd1 /|/! hitReswordErr(Nil, () => "after syntax-correct leading subtype")))(src)._1
+    } catch
+      case e: ReaderFail => throw ScolFail("Undiagnosed type syntax error")
+  }
+
+
+  def parseType(x : String) : HolType = (pretypeToType compose checkPretype compose parsePretype compose lex compose charExplode)(x)
+  def parsePreterm(src : List[Token]) : Preterm = ???
+  def parseTerm(x : String) : Term = (pretermToTerm compose resolvePreterm compose detypePreterm compose parsePreterm compose lex compose charExplode)(x)
+
+  private def stringTail(x : String, i : Int) : String = {
+    x.substring(i)
+  }
+
+  @tailrec
+  private def skipSpace(x : String, i : Int) : Int = {
+    if (i < x.length && isWhitespaceChar(x(i))){
+      skipSpace(x, i + 1)
+    }else{
+      i
+    }
+  }
+
+  def expandHolEquation(x : String) : String = {
+    val i = skipSpace(x, 0)
+    if (i < x.length && x(i) == ':'){
+      val i_ = skipSpace(x, i+1)
+      "parse type " + (stringTail(x, i_))
+    }else{
+      "parse term " + (stringTail(x, i))
+    }
+  }
 }
