@@ -9,7 +9,7 @@ import main.scala.utils.HelperType.*
 import main.scala.utils.ScolException.{ReaderFail, ScolError, ScolFail, internalError}
 import main.scala.Lib.*
 import main.scala.Parser./|/!
-import main.scala.Preterm.{Preterm, Pretype, Ptycomp, Ptyvar, mkBinPretype, pretermToTerm, pretypeToType}
+import main.scala.Preterm.{Preterm, Pretype, Ptmtyped, Ptycomp, Ptyvar, atomPretermName, isPrefixPreterm, mkBinPreterm, mkBinPretype, mkNulltypeConstPreterm, mkNulltypeVarPreterm, pretermToTerm, pretypeToType}
 import main.scala.TypeAnal.{checkPretype, detypePreterm, resolvePreterm}
 import main.scala.utils.ScolException
 
@@ -237,11 +237,11 @@ object Parser {
                                                       /|/! hitReswordInsteadErr(List(rw), items)))
   }
 
-  def parseItemB(item: () => String, parseFn: Reader[List[Token], String]): Reader[List[Token], String] = {
+  def parseItemB[A](item: () => String, parseFn: Reader[List[Token], A]): Reader[List[Token], A] = {
     parseFn /|/! endOfQtnErr(List(item)) /|/! hitReswordInsteadErr(List.empty, List(item))
   }
 
-  def parseItemC(item: () => String, br1: String, br2: String, parseFn: Reader[List[Token], String]): Reader[List[Token], String] = {
+  def parseItemC[A](item: () => String, br1: String, br2: String, parseFn: Reader[List[Token], A]): Reader[List[Token], A] = {
     parseFn
 //      /|/! noCloseErr(br1, br2)
       /|/! earlyReswordErr(List(br2), item)
@@ -321,23 +321,22 @@ object Parser {
       throw ReaderFail("buildInfixExpr")
   }
 
-  def helper1[A, C : Ordering, D](f1 : A, n1 : C, item : (String, A) => String, parseOpFn : Reader[List[Token], (A, C, D)]): List[Token] => String = {
+  def helper1[A, D](f1 : A, n1 : Int, item : (String, A) => String, parseOpFn : Reader[List[Token], (A, Int, D)]): List[Token] => String = {
     (@!:(
-      (f2n2_ : (A, C, D)) => {
-        val (f2: A, n2: C, _: Any) = f2n2_
-        val ordering = implicitly[Ordering[C]]
-        if ordering.gteq(n1, n2)
+      (f2n2_ : (A, Int, D)) => {
+        val (f2: A, n2: Int, _: Any) = f2n2_
+        if n1 >= n2
         then "Missing " + item("RHS", f1)
         else "Missing " + item("LHS", f2)
       }, parseOpFn))
   }
 
-  private def parseInfixExpr0[A, B, C : Ordering, D](form: String, nameFn: A => String)(parseFn: Reader[List[Token], B], parseOpFn: Reader[List[Token], (A, C, D)])
-  : Reader[List[Token], List[((A, C, D), B)]] = {
-    parseList[((A, C, D), B)].curried(1) apply
+  private def parseInfixExpr0[A, B, D](form: String, nameFn: A => String)(parseFn: Reader[List[Token], B], parseOpFn: Reader[List[Token], (A, Int, D)])
+  : Reader[List[Token], List[((A, Int, D), B)]] = {
+    parseList[((A, Int, D), B)].curried(1) apply
     (parseOpFn
-      >@> ((f1n1_ : (A, C, Any)) => {
-      val (f1: A, n1: C, _: Any) = f1n1_
+      >@> ((f1n1_ : (A, Int, Any)) => {
+      val (f1: A, n1: Int, _: Any) = f1n1_
       def item(h: String, f: A) = {h + " for " + form + " " + (nameFn apply f)}
       val item1 = () => item ("RHS", f1)
       parseFn /|/! endOfQtnErr(List (item1)) /|/! helper1 (f1, n1, item, parseOpFn) /|/! hitReswordInsteadErr (Nil, List (item1))
@@ -346,8 +345,8 @@ object Parser {
   }
 
   // change D to AssocHand
-  def parseInfixExpr[A, B, C : Ordering, E, F](form: String, nameFn: A => String)(parseFn: Reader[List[Token], B],
-                                                              parseOpFn: Reader[List[Token], (A, C, AssocHand)], mkBinFn: (A, B, B) => B)
+  def parseInfixExpr[A, B](form: String, nameFn: A => String)(parseFn: Reader[List[Token], B],
+                                                              parseOpFn: Reader[List[Token], (A, Int, AssocHand)], mkBinFn: (A, B, B) => B)
                           (e0: B, src: List[Token]): (B, List[Token]) = {
     val pF = parseInfixExpr0(form, nameFn)(parseFn, parseOpFn)
     val (fes, src1) = pF(src)
@@ -377,7 +376,7 @@ object Parser {
       *>>
       parseItemD(() => "subtype", "(", ",", ")", parsePretype0)
 
-    
+
     // fixme fix this one
 
 //      parseItemD(() => "subtype", "(", ",", ")", (parsePretype0 /|/! noCloseErr("(", ")") /|/! earlyReswordErr(List(","), () => "type parameter")))
@@ -448,10 +447,102 @@ object Parser {
   }
 
   private def parsePretype(src: List[Token]): Pretype = {
-    Ptyvar("s")
     try {
       (/!(parseStart, "Empty type quotation")
         *>> (parsePretype0 /|/! hitReswordErr(leadingTypeReswords, () => "at start of type"))
+        >>* (parseEnd1 /|/! hitReswordErr(Nil, () => "after syntax-correct leading subtype")))(src)._1
+    } catch
+      case e: ReaderFail => throw ScolFail("Undiagnosed type syntax error")
+  }
+
+  def parseAtomWith(testFn : Token => Boolean) : Reader[List[Token], Preterm] = {
+    def help = {
+      parseNameWith((tok : Token) => (isVarToken(tok) && testFn(tok)))
+    }
+    def help1 = {
+      (upty : (Preterm, Pretype)) => {
+        val (u, pty) = upty
+        Ptmtyped(u, pty)
+      }
+    }
+    def help4 = {
+      parseAtomWith(testFn) /|/! noCloseErr("(", ")") /|/! earlyReswordErr(List(":"), ()  => "type annotation subterm")
+    }
+    def help3 = {
+      parseResword("(")
+      *>> help4
+      >>* parseResword(":")
+      >>> parseItemC(() => "type annotation type", "(", ")", parsePretype0)
+      >>* parseResword(")")
+    }
+
+
+    (mkNulltypeVarPreterm @: help)
+    |||
+    (mkNulltypeConstPreterm @: help)
+    |||
+    (help1 @: help3)
+  }
+
+  private def hitPrefixErr(items : List[() => String]): List[Token] => String = {
+    @!:((ptm : Preterm) => "Unexpected prefix " + quote(atomPretermName(ptm)) + " instead of " + ored(items), parseAtomWith(isPrefixToken))
+  }
+
+  private def hitInfixErr(items : List[() => String]): List[Token] => String = {
+    @!:((ptm : Preterm) => "Unexpected infix " + quote(atomPretermName(ptm)) + " instead of " + ored(items), parseAtomWith(isInfixToken))
+  }
+
+  private def hitNumeralErr(items: List[() => String]): List[Token] => String = {
+    @!:((x: String) => "Unexpected numeral " + quote(x) + " instead of " + ored(items), parseNameWith(isNumeralToken))
+  }
+
+  private def hitConstErr(eqkwd : Boolean, items: List[() => String]): List[Token] => String = {
+    @!:((x: String) => "Unexpected const " + quote(x) + " instead of " + ored(items), parseNameWith((tok : Token) => isConstToken(tok) && !(eqkwd && isEqkwdToken(tok))))
+  }
+
+  private def parseInfixOp : Reader[List[Token], (Preterm, Int, AssocHand)] = {
+    ((f : Preterm) => {
+      val x = atomPretermName(f)
+      val (n, h) = getInfixInfo(x)
+      (f, n, h)
+    }) @: parseAtomWith(isInfixToken)
+  }
+
+  def parseNonfixVar(eqkwd : Boolean, items : List[() => String]): Reader[List[Token], Preterm] = {
+    parseAtomWith(isNonfixVarToken)
+      /|/! (@!:((x : String) => "Variable " + quote(x) + " is not nonfix", parseNameWith(isVarToken)))
+      /|/! hitConstErr(eqkwd, items)
+      /|/! hitNumeralErr(items)
+  }
+
+  private def parsePreterm5 : Reader[List[Token], Preterm] = ???
+  private def parsePreterm4 : Reader[List[Token], Preterm] = ???
+  private def parsePreterm3 : Reader[List[Token], Preterm] = ???
+  private def parsePreterm2 : Reader[List[Token], Preterm] = ???
+
+  private def parsePreterm1 : Reader[List[Token], Preterm] = {
+    def help1 : Reader[List[Token], Preterm] = {
+      parsePreterm2 /|/! (@!:((ptm : Preterm) => "Missing LHS for infix " + quote(atomPretermName(ptm)), parseAtomWith(isInfixToken)))
+    }
+    def help2  = {
+      parseInfixExpr("infix", atomPretermName)(parsePreterm2, parseInfixOp, mkBinPreterm).curried
+    }
+    help1 |@| help2
+  }
+
+  private def parsePreterm0 : Reader[List[Token], Preterm] = {
+      ((parsePreterm1 /|/! (earlyReswordErr(List(":"), () => "type annotation subterm")))
+        |@|
+        ((ptm : Preterm) =>
+          ((pty : Pretype) => Ptmtyped(ptm, pty)) @:
+          (parseResword(":") *>> parseItemB(() => "type annotation type", parsePretype0))
+        ))
+  }
+
+  private def parsePreterm(src: List[Token]): Preterm = {
+    try {
+      (/!(parseStart, "Empty type quotation")
+        *>> (parsePreterm0 /|/! hitReswordErr(leadingTypeReswords, () => "at start of type"))
         >>* (parseEnd1 /|/! hitReswordErr(Nil, () => "after syntax-correct leading subtype")))(src)._1
     } catch
       case e: ReaderFail => throw ScolFail("Undiagnosed type syntax error")
@@ -468,12 +559,9 @@ object Parser {
     println(pp)
 
 //    (pretypeToType compose checkPretype compose parsePretype compose lex compose charExplode)(x)
-  def parsePreterm(src : List[Token]) : Preterm = ???
   def parseTerm(x : String) : Term = (pretermToTerm compose resolvePreterm compose detypePreterm compose parsePreterm compose lex compose charExplode)(x)
 
-  private def stringTail(x : String, i : Int) : String = {
-    x.substring(i)
-  }
+  private def stringTail(x : String, i : Int) : String = x.substring(i)
 
   @tailrec
   private def skipSpace(x : String, i : Int) : Int = {
