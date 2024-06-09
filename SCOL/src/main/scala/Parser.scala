@@ -113,8 +113,20 @@ object Parser {
     case _ => false
   }
 
+  def parseList[B](n: Int, readFn: Reader[List[Token], B]): Reader[List[Token], List[B]] = {
+    src =>
+      try {
+        val (x, src1) = readFn(src)
+        val (xs, src2) = readList(n - 1, readFn)(src1)
+        (x :: xs, src2)
+      } catch {
+        case _: ReaderFail =>
+          if (n == 0) {println("here");(Nil, src)}
+          else throw ReaderFail("ReadList Failed to finish readList")
+      }
+  }
   // Specialised Syntax Reader Combinators
-  private def parseList[A]: (Int, Reader[List[Token], A]) => Reader[List[Token], List[A]] = readList[List[Token], A]
+//  private def parseList[A]: (Int, Reader[List[Token], A]) => Reader[List[Token], List[A]] = readList[List[Token], A]
   val parseStart: Reader[List[Token], Unit] = readStart
   val parseEnd: Reader[List[Token], Unit] = readEnd
   val parseEnd1: Reader[List[Token], String] = (src) =>
@@ -122,7 +134,7 @@ object Parser {
     ("", lt)
 
 
-  def parseEqualsKwd: Reader[List[Token], String] = tokenName @: readElemWith(isEqkwdToken) // ?????
+  def parseEqualsKwd: Reader[List[Token], String] = tokenName @: readElemWith(isEqkwdToken)
 
   private def parseNameWith(testFn: Token => Boolean): Reader[List[Token], String] = tokenName @: readElemWith(testFn)
 
@@ -154,8 +166,10 @@ object Parser {
   extension[A, B](parseFn: Reader[A, B]) {
     @targetName("/|/!")
     infix def /|/![C](errFn: A => String) : Reader[A, B] = {
-        parseFn |||
-          (syntaxErrorTh @: ((src : A) => (errFn(src), src)))
+      try{parseFn}catch
+        case _ => throw ReaderFail("FAIL FAIL FAIL")
+//        parseFn |||
+//          (syntaxErrorTh @: ((src : A) => (errFn(src), src)))
     }
   }
 
@@ -229,21 +243,21 @@ object Parser {
 
   def parseItemC(item: () => String, br1: String, br2: String, parseFn: Reader[List[Token], String]): Reader[List[Token], String] = {
     parseFn
-      /|/! noCloseErr(br1, br2)
+//      /|/! noCloseErr(br1, br2)
       /|/! earlyReswordErr(List(br2), item)
       /|/! hitReswordInsteadErr(List(br2), List(item))
   }
 
   def parseItemD[A](item: () => String, br1: String, sep: String, br2: String, parseFn: Reader[List[Token], A]): Reader[List[Token], A] = {
     parseFn
-      /|/! noCloseErr(br1, br2)
+//      /|/! noCloseErr(br1, br2)
       /|/! earlyReswordErr(List(sep, br2), item)
       /|/! hitReswordInsteadErr(List(sep, br2), List(item))
   }
 
   def parseReswordD(br1: String, sep: String, br2: String, x: String): Reader[List[Token], String] = {
     parseResword(x)
-      /|/! noCloseErr(br1, br2)
+//      /|/! noCloseErr(br1, br2)
       /|/! wrongReswordErr(List(sep, br2))
   }
 
@@ -320,7 +334,7 @@ object Parser {
 
   private def parseInfixExpr0[A, B, C : Ordering, D](form: String, nameFn: A => String)(parseFn: Reader[List[Token], B], parseOpFn: Reader[List[Token], (A, C, D)])
   : Reader[List[Token], List[((A, C, D), B)]] = {
-    parseList.curried(1) apply
+    parseList[((A, C, D), B)].curried(1) apply
     (parseOpFn
       >@> ((f1n1_ : (A, C, Any)) => {
       val (f1: A, n1: C, _: Any) = f1n1_
@@ -361,9 +375,10 @@ object Parser {
   private def helper5a: Reader[List[Token], Pretype] = {
     parseResword("(")
       *>>
-      parseItemD(() => "subtype", "(", ",", ")", (parsePretype0 /|/! noCloseErr("(", ")") /|/! earlyReswordErr(List(","), () => "type parameter")))
+      parseItemD(() => "subtype", "(", ",", ")", parsePretype0)
+//      parseItemD(() => "subtype", "(", ",", ")", (parsePretype0 /|/! noCloseErr("(", ")") /|/! earlyReswordErr(List(","), () => "type parameter")))
   }
-  
+
   private def helper5b : Pretype => Reader[List[Token], Pretype] = {
       def help(pty: Pretype): ((Object & Equals, String)) => Pretype = {
         case (ptys: List[Pretype], x: String) => Ptycomp(x, pty :: ptys)
@@ -388,24 +403,24 @@ object Parser {
         help3(pty) ||| (help(pty) @: help2)
       }
   }
-  
+
   private def helper5 : Reader[List[Token], Pretype] = {
     helper5a *@> helper5b
   }
-  
+
   private def helper6a[A]: String => A = (x : String) => syntaxErrorTh("Term variable " + x + " encountered in type")
   private def helper6b[A]: Reader[List[Token], String] = {parseNameWith(({
     case IdentTok(_, TmvarMark, _) => true
     case _ => false
     }))
   }
-  
+
   def helper6 : Reader[List[Token], Pretype] = {
      helper6a @: helper6b
   }
-  
+
   private def parsePretype2 : Reader[List[Token], Pretype] = {
-    helper3 ||| 
+    helper3 |||
     helper4 |||
     helper5 |||
     helper6
@@ -429,6 +444,7 @@ object Parser {
   }
 
   private def parsePretype(src: List[Token]): Pretype = {
+    Ptyvar("s")
     try {
       (/!(parseStart, "Empty type quotation")
         *>> (parsePretype0 /|/! hitReswordErr(leadingTypeReswords, () => "at start of type"))
@@ -439,6 +455,15 @@ object Parser {
 
 
   def parseType(x : String) : HolType = (pretypeToType compose checkPretype compose parsePretype compose lex compose charExplode)(x)
+  def parseTypeDebug(x : String) =
+    val ce = charExplode(x)
+    println(ce)
+    val l = lex(ce)
+    println(l)
+    val pp = parsePretype(l)
+    println(pp)
+
+//    (pretypeToType compose checkPretype compose parsePretype compose lex compose charExplode)(x)
   def parsePreterm(src : List[Token]) : Preterm = ???
   def parseTerm(x : String) : Term = (pretermToTerm compose resolvePreterm compose detypePreterm compose parsePreterm compose lex compose charExplode)(x)
 
