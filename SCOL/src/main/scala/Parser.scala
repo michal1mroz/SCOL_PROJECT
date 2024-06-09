@@ -138,9 +138,9 @@ object Parser {
   // Syntax Error Support
 
   // Error Raising Function
-  def syntaxError[A](x: A): ScolError = ScolError(s"SYNTAX ERROR: ", x.toString)
-  def syntaxErrorTh[A](x: A): Unit = throw ScolError(s"SYNTAX ERROR: ", x.toString)
-  def syntaxErrorTh2[A](x: A): String = "SYNTAX ERROR" + x.toString
+  def syntaxError(x: String): ScolError = ScolError(s"SYNTAX ERROR: ", x)
+  def syntaxErrorTh[A](x: String): A = throw ScolError(s"SYNTAX ERROR: ", x)
+  def syntaxErrorTh2(x: String): String = "SYNTAX ERROR" + x
 
   @targetName("/!")
   def /![A, B](parseFn: Reader[A, B], msg: String)(src: A): (B, A) = {
@@ -154,10 +154,10 @@ object Parser {
   // I have no clue how to do this one
   extension[A, B](parseFn: Reader[A, B]) {
     @targetName("/|/!")
-    infix def /|/![C](errFn: C) : Reader[A, B] = {
-      parseFn
-//        parseFn |||
-//          (syntaxErrorTh2 @: ((src : A) => (errFn(src), src)))
+    infix def /|/![C](errFn: A => String) : Reader[A, B] = {
+//      parseFn
+        parseFn |||
+          (syntaxErrorTh @: ((src : A) => (errFn(src), src)))
     }
   }
 
@@ -310,15 +310,35 @@ object Parser {
       throw ReaderFail("buildInfixExpr")
   }
 
-  private def parseInfixExpr0[A, B, C, D](form: String, nameFn: A => String)(parseFn: Reader[List[Token], B], parseOpFn: Reader[List[Token], (A, C, D)])
-  : Reader[List[Token], List[((A, C, D), B)]] = {
-    parseList.curried(1)(parseOpFn >@> (_ => parseFn))
+  def helper1[A, C : Ordering, D](f1 : A, n1 : C, item : (String, A) => String, parseOpFn : Reader[List[Token], (A, C, D)]): List[Token] => String = {
+    (@!:(
+      (f2n2_ : (A, C, D)) => {
+        val (f2: A, n2: C, _: Any) = f2n2_
+        val ordering = implicitly[Ordering[C]]
+        if ordering.gteq(n1, n2)
+        then "Missing " + item("RHS", f1)
+        else "Missing " + item("LHS", f2)
+      }, parseOpFn))
   }
 
-  def parseInfixExpr[A, B, C, D, E, F](form: String, nameFn: A => String)(parseFn: Reader[List[Token], D],
-                                                              parseOpFn: Reader[List[Token], (A, E, F)], mkBinFn: (A, B, B) => B)
+  private def parseInfixExpr0[A, B, C : Ordering, D](form: String, nameFn: A => String)(parseFn: Reader[List[Token], B], parseOpFn: Reader[List[Token], (A, C, D)])
+  : Reader[List[Token], List[((A, C, D), B)]] = {
+    parseList.curried(1) apply
+    (parseOpFn
+      >@> ((f1n1_ : (A, C, Any)) => {
+      val (f1: A, n1: C, _: Any) = f1n1_
+      def item(h: String, f: A) = {h + " for " + form + " " + (nameFn apply f)}
+      val item1 = () => item ("RHS", f1)
+      parseFn /|/! endOfQtnErr(List (item1)) /|/! helper1 (f1, n1, item, parseOpFn) /|/! hitReswordInsteadErr (Nil, List (item1))
+    }
+      ))
+  }
+
+  def parseInfixExpr[A, B, C : Ordering, D, E, F](form: String, nameFn: A => String)(parseFn: Reader[List[Token], B],
+                                                              parseOpFn: Reader[List[Token], (A, C, D)], mkBinFn: (A, B, B) => B)
                           (e0: B, src: List[Token]): (B, List[Token]) = {
-    val (fes, src1) = parseInfixExpr0(form, nameFn)(parseFn, parseOpFn)(src)
+    val pF = parseInfixExpr0(form, nameFn)(parseFn, parseOpFn)
+    val (fes, src1) = pF(src)
     val ys = buildRevpolish(form, nameFn)(e0, fes)
     val (e, ys1) = buildInfixExpr(mkBinFn)(ys)
     assert(ys1.isEmpty, "parseInfixExpr")
