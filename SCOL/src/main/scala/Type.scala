@@ -4,7 +4,6 @@ import utils.ScolException.ScolFail
 
 import scala.collection.mutable
 import scala.collection.mutable.HashMap
-import scala.math.BigInt
 
 object Type {
 
@@ -20,17 +19,17 @@ object Type {
     }
   }
 
-  private val theTyconsts: mutable.HashMap[String, BigInt] = mutable.HashMap.empty
+  private val theTyconsts: mutable.HashMap[String, Int] = mutable.HashMap.empty
 
-  def getTyconstArity(x: String): BigInt =
+  def primGetTyconstArity(x: String): Int =
     theTyconsts.getOrElse(x, throw ScolFail(s"No type constant called $x"))
 
-  def getAllTyconsts: List[(String, BigInt)] = theTyconsts.toList
+  def getAllTyconsts: List[(String, Int)] = theTyconsts.toList
 
   def isTyconstName(x: String): Boolean = theTyconsts.contains(x)
 
-  def primNewTyconst(x: String, n: BigInt): Unit = {
-    require(n >= BigInt(0), "Arity must be non-negative")
+  def primNewTyconst(x: String, n: Int): Unit = {
+    require(n >= 0, "Arity must be non-negative")
     require(!isTyconstName(x), s"Type constant name $x already used")
     println(s"Declaring type constant $x")
     theTyconsts.put(x, n)

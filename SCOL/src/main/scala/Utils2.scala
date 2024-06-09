@@ -12,13 +12,13 @@ import utils.ScolException.*
 object Utils2 {
   def listMkFunType(tys: List[HolType], ty: HolType): HolType = foldr_(mkFunType)(ty, tys)
 
-  def stripFunType(ty: HolType): (HolType, List[HolType]) = unfoldr(destFunType, ty)
+  def stripFunType(ty: HolType): (List[HolType], HolType) = unfoldr(destFunType, ty)
 
   def rator(tm: Term): Term = fst(destComb(tm))
 
   def rand(tm: Term): Term = snd(destComb(tm))
 
-  def stripComb(tm: Term): (Term, List[Term]) = unfoldl(destComb, tm)
+  def stripComb(tm: Term): (List[Term], Term) = unfoldl(destComb, tm)
 
   def listMkAbs(vs: List[Term], tm0: Term): Term = {
     try {
@@ -32,7 +32,7 @@ object Utils2 {
 
   def body(tm: Term): Term = snd(destAbs(tm))
 
-  def stripAbs(tm: Term): (Term, List[Term]) = unfoldr(destAbs, tm)
+  def stripAbs(tm: Term): (List[Term], Term) = unfoldr(destAbs, tm)
 
   def isCbin(x: String, tm: Term): Boolean = can(destCbin(x), tm)
 
@@ -50,7 +50,7 @@ object Utils2 {
     }
   }
 
-  def stripImp(tm: Term): (Term, List[Term]) = unfoldr(destImp, tm)
+  def stripImp(tm: Term): (List[Term], Term) = unfoldr(destImp, tm)
 
   def mkSelect(v: Term, tm0: Term): Term = {
     assert1(isBoolTerm(tm0), "mkSelect, Arg2 not boolean")
@@ -88,7 +88,7 @@ object Utils2 {
 
   def isForall(tm: Term): Boolean = can(destForall, tm)
 
-  def stripForall(tm: Term): (Term, List[Term]) = unfoldr(destForall, tm)
+  def stripForall(tm: Term): (List[Term], Term) = unfoldr(destForall, tm)
 
   def mkConj(tm1: Term, tm2: Term): Term = {
     assert1(isBoolTerm(tm1), "mkConj, Arg 1 not boolean")

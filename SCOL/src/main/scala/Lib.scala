@@ -2,6 +2,7 @@ package main.scala
 import utils.ScolException.ScolFail
 
 import java.math.BigInteger
+import scala.::
 import scala.annotation.tailrec
 
 object Lib {
@@ -108,7 +109,7 @@ object Lib {
     case _ => throw IllegalArgumentException("Empty list")
   }
 
-  def frontLast[A](l: List[A]): (A, A) = (l.head, l.last)
+  def frontLast[A](l: List[A]): (List[A], A) = (l.init, l.last)
 
   @tailrec
   def listEq[A, B](eq: (A, B) => Boolean, xs: List[A], ys: List[B]): Boolean = (xs, ys) match {
@@ -205,7 +206,11 @@ object Lib {
   }
 
   // foldl: Fold left operation on a list
-  def foldl[A, B](f: B => A => B)(a: B)(xs: List[A]): B = xs.foldLeft(a)(uncurry_(f))
+//  def foldl[A, B](f: B => A => B)(a: B)(xs: List[A]): B = xs.foldLeft(a)(uncurry_(f))
+  def foldl[A, B](f: B => A => B)(a: B)(xs: List[A]): B = xs match {
+    case Nil => a
+    case l :: ls => foldl(f)(f(a)(l))(ls)
+  }
 
   // foldl1: Fold left operation on a non-empty list
   def foldl1[A](f: A => A => A)(xs: List[A]): A = xs match {
@@ -218,9 +223,9 @@ object Lib {
 
   // foldr1: Fold right operation on a non-empty list
   def foldr1[A](f: A => A => A)(xs: List[A]): A = xs match {
-    case x :: Nil => x
-    case x1 :: xs2 => xs.foldRight(x1)(uncurry_(f))
     case Nil => throw new IllegalArgumentException("Empty list")
+    case x :: Nil => x
+    case x1 :: xs2 => f(x1)(foldr1(f)(xs2))
   }
 
   // foldl': Variant of foldl suited for uncurried binary functions
@@ -235,39 +240,72 @@ object Lib {
   // foldr1': Variant of foldr1 suited for uncurried binary functions
   def foldr1_[A](f: (A, A) => A)(xs: List[A]): A = foldr1(curry(f))(xs)
 
-  def unfoldl0[A, B](dest_fn: A => (A, B), x: A, xs: List[B]): (A, List[B]) = {
+  private def unfoldl0[A, B](dest_fn: A => (A, B), x: A, xs: List[B]): (A, List[B]) = {
     try {
       val (x1, x2) = dest_fn(x)
       unfoldl0(dest_fn, x1, x2 :: xs)
     } catch {
-      case _: Throwable => (x, xs.reverse)
+      case _: ScolFail => (x, xs)
     }
   }
 
+  def unfold1[A](dest_fn: A => (A, A), x: A, xs: List[A]): (A, List[A]) = {
+    @annotation.tailrec
+    def helper(seed: A, acc: List[A]): (A, List[A]) = {
+      val (nextSeed, result) = dest_fn(seed)
+      if (nextSeed == seed) (nextSeed, acc.reverse ++ xs)
+      else helper(nextSeed, result :: acc)
+    }
+
+    helper(x, Nil)
+  }
+
   // Define the unfoldl function
-  def unfoldl[A, B](dest_fn: A => (A, B), x: A): (A, List[B]) = unfoldl0(dest_fn, x, Nil)
+  def unfoldl[A, B](dest_fn: A => (A, B), x: A): (List[B], A) = unfoldl0(dest_fn, x, Nil).swap
 
   def unfoldl1[A](dest_fn: A => (A, A), x: A): List[A] = {
-    val (x1, xs) = unfoldl(dest_fn, x)
+    val (xs, x1) = unfoldl(dest_fn, x)
     x1 :: xs
   }
 
-  def  unfoldr0[A, B](dest_fn: B => (A, B), x: B, xs:List[A]): (B, List[A]) = {
+  def  unfoldr0[A, B](dest_fn: B => (A, B), x: B, xs:List[A]): (List[A], B) = {
     try{
       val (x1, x2) = dest_fn(x)
       unfoldr0(dest_fn, x2, x1::xs)
     } catch{
-      case _: ScolFail => (x, xs.reverse)
+      case _: ScolFail => (x, xs.reverse).swap
     }
   }
 
-  def unfoldr[A, B](dest_fn: B => (A ,B), x: B): (B, List[A]) = {
-    val (x1, xs) = unfoldr0(dest_fn, x, List.empty)
-    (x1, xs.reverse)
+  def unfoldr[A, B](dest_fn: B => (A ,B), x: B): (List[A], B) = {
+    val (xs, x1) = unfoldr0(dest_fn, x, List.empty)
+    (x1, xs.reverse).swap
+  }
+
+  def unfoldlAlter[A, B](dest_fn: A => (A, B), x: A): (List[B], A) = {
+    @annotation.tailrec
+    def helper(acc: List[B], seed: A): (List[B], A) = {
+      val (newSeed, b) = dest_fn(seed)
+      if (b == null) (acc.reverse, newSeed)
+      else helper(b :: acc, newSeed)
+    }
+
+    helper(Nil, x)
+  }
+
+  def unfoldrAlter[A, B](dest_fn: B => (A, B), x: B): (List[A], B) = {
+    @annotation.tailrec
+    def helper(acc: List[A], seed: B): (List[A], B) = {
+      val (a, newSeed) = dest_fn(seed)
+      if (a == null) (acc.reverse, newSeed) // Stop condition if `a` is null
+      else helper(a :: acc, newSeed)
+    }
+
+    helper(Nil, x)
   }
 
   def unfoldr1[A](dest_fn: A => (A, A), x: A): List[A] = {
-    val (x1, xs) = unfoldr0(dest_fn, x, List.empty)
+    val (xs, x1) = unfoldr0(dest_fn, x, List.empty)
     (x1::xs).reverse
   }
 
@@ -276,7 +314,7 @@ object Lib {
       val (x1, x2) = dest_fn(x)
       unfold0(dest_fn, x1, unfold0(dest_fn, x2, xs))
     }catch {
-      case _: ScolFail => x::xs
+      case _: ScolFail => x :: xs
     }
   }
 
@@ -299,7 +337,7 @@ object Lib {
     case (x0, y0) :: xys0 =>
       if (x == x0) y0
       else assoc(x, xys0)
-    case Nil => throw new NoSuchElementException("assoc: No match")
+    case Nil => throw ScolFail("assoc: No match")
   }
 
   // Define the inv_assoc function
@@ -348,7 +386,7 @@ object Lib {
 
   def setify_[A](eq: A => A => Boolean, l: List[A]): List[A] = l.foldLeft(List.empty[A])((acc, x) => insert_Curried_(eq)(acc, x)).reverse
 
-  def union[A](l1: List[A], l2: List[A]): List[A] = l2.foldRight(l1)((elem, acc) => insert(elem, acc))
+  def union[A](l1: List[A], l2: List[A]): List[A] = (l1 ++ l2).distinct
   // This works a little bit different than original since it kills all the duplicates in a list
   // You can think of it as a legitimate union of 2 sets
   // not sure if is ok for our purposes
@@ -362,9 +400,7 @@ object Lib {
 
   def union_Curried[A](eq: A => A => Boolean)(l1: List[A], l2: List[A]): List[A] = union_(eq, l2, l2)
 
-  def unions[A](ls: List[List[A]]): List[A] = ls match
-    case Nil => Nil
-    case _ => foldl1(curry_(union[A]))(ls)
+  def unions[A](ls: List[List[A]]): List[A] = ls.flatten.distinct
 
   // fixme not sure if it works correctly or not
   def unions_[A](eq: A => A => Boolean, ls: List[List[A]]): List[A] = ls match
@@ -442,4 +478,10 @@ object Lib {
   def warn(msg : String) : Unit = println("SCOL WARNING: " + msg)
 
   def mergesort[A](rel : A => A => Boolean, l : List[A]) : List[A] = l.sortWith(uncurry_(rel))
+
+
+  def reverseTail[A](list : List[A]) : List[A] =  list match{
+    case Nil => Nil
+    case head :: tail => head :: tail.reverse
+  }
 }
