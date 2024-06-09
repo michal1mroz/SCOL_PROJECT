@@ -9,10 +9,11 @@ import main.scala.utils.HelperType.*
 import main.scala.utils.ScolException.{ReaderFail, ScolError, ScolFail, internalError}
 import main.scala.Lib.*
 import main.scala.Parser./|/!
-import main.scala.Preterm.{Preterm, Pretype, Ptmtyped, Ptycomp, Ptyvar, atomPretermName, isPrefixPreterm, mkBinPreterm, mkBinPretype, mkNulltypeConstPreterm, mkNulltypeVarPreterm, pretermToTerm, pretypeToType}
+import main.scala.Preterm.{Preterm, Pretype, Ptmtyped, Ptycomp, Ptyvar, atomPretermName, isPrefixPreterm, listMkAbsPreterm, listMkBinderPreterm, listMkCombPreterm, listMkPairPreterm, mkBinPreterm, mkBinPretype, mkCombPreterm, mkCondPreterm, mkEnumPreterm, mkLetPreterm, mkNatPreterm, mkNulltypeConstPreterm, mkNulltypeVarPreterm, pretermToTerm, pretypeToType}
 import main.scala.TypeAnal.{checkPretype, detypePreterm, resolvePreterm}
 import main.scala.utils.ScolException
 
+import scala.::
 import scala.annotation.{tailrec, targetName}
 
 object Parser {
@@ -99,21 +100,21 @@ object Parser {
     case _ => false
   }
 
-  def isConstToken(tok: Token): Boolean = tok match {
+  private def isConstToken(tok: Token): Boolean = tok match {
     case IdentTok(_, vmrk, x) =>
       vmrk == NoMark && isConstName(x)
     case _ => false
   }
 
-  def isNonfixVarToken(tok: Token): Boolean =
+  private def isNonfixVarToken(tok: Token): Boolean =
     isVarToken(tok) && isNonfixToken(tok)
 
-  def isNumeralToken(tok: Token): Boolean = tok match {
+  private def isNumeralToken(tok: Token): Boolean = tok match {
     case NumericTok(_, vmrk, _) => vmrk == NoMark
     case _ => false
   }
 
-  def parseList[B](n: Int, readFn: Reader[List[Token], B]): Reader[List[Token], List[B]] = {
+  private def parseList[B](n: Int, readFn: Reader[List[Token], B]): Reader[List[Token], List[B]] = {
     src =>
       try {
         val (x, src1) = readFn(src)
@@ -127,14 +128,14 @@ object Parser {
   }
   // Specialised Syntax Reader Combinators
 //  private def parseList[A]: (Int, Reader[List[Token], A]) => Reader[List[Token], List[A]] = readList[List[Token], A]
-  val parseStart: Reader[List[Token], Unit] = readStart
-  val parseEnd: Reader[List[Token], Unit] = readEnd
-  val parseEnd1: Reader[List[Token], String] = (src) =>
+  private val parseStart: Reader[List[Token], Unit] = readStart
+  private val parseEnd: Reader[List[Token], Unit] = readEnd
+  private val parseEnd1: Reader[List[Token], String] = (src) =>
     val (_, lt) = parseEnd(src)
     ("", lt)
 
 
-  def parseEqualsKwd: Reader[List[Token], String] = tokenName @: readElemWith(isEqkwdToken)
+  private def parseEqualsKwd: Reader[List[Token], String] = tokenName @: readElemWith(isEqkwdToken)
 
   private def parseNameWith(testFn: Token => Boolean): Reader[List[Token], String] = tokenName @: readElemWith(testFn)
 
@@ -151,8 +152,8 @@ object Parser {
 
   // Error Raising Function
   def syntaxError(x: String): ScolError = ScolError(s"SYNTAX ERROR: ", x)
-  def syntaxErrorTh[A](x: String): A = throw ScolError(s"SYNTAX ERROR: ", x)
-  def syntaxErrorTh2(x: String): String = "SYNTAX ERROR" + x
+  private def syntaxErrorTh[A](x: String): A = throw ScolError(s"SYNTAX ERROR: ", x)
+  private def syntaxErrorTh2(x: String): String = "SYNTAX ERROR" + x
 
   @targetName("/!")
   def /![A, B](parseFn: Reader[A, B], msg: String)(src: A): (B, A) = {
@@ -215,47 +216,47 @@ object Parser {
   private val leadingTypeReswords: List[String] = List("(")
 
 
-  def leadingTermResswors: List[String] = {
+  private def leadingTermResswors: List[String] = {
     List("(", "\\", "if", "let", ":") ++ get_all_enum_info().map {case ((first, _), _) => first}
   }
 
-  def parseItemA(item: () => String, rws: List[String], parseFn: Reader[List[Token], String]): Reader[List[Token], String] = {
+  private def parseItemA[A](item: () => String, rws: List[String], parseFn: Reader[List[Token], A]): Reader[List[Token], A] = {
     parseFn /|/! endOfQtnErr(List(item)) /|/! earlyReswordErr(rws, item) /|/! hitReswordInsteadErr(rws, List(item))
   }
 
-  def parseReswordA(rw: String): Reader[List[Token], String] = {
+  private def parseReswordA(rw: String): Reader[List[Token], String] = {
     parseResword(rw) /|/! endOfQtnErr(List(() => quote(rw))) /|/! wrongReswordErr(List(rw))
   }
 
-  def parseListA(item: () => String, rw: String, parseFn1: List[() => String] => Reader[List[Token], String]): Reader[List[Token], List[String]] = {
+  def parseListA[A](item: () => String, rw: String, parseFn1: List[() => String] => Reader[List[Token], A]): Reader[List[Token], List[A]] = {
     val items = List(item, () => rw)
 
-    ((x : String, xs : List[String]) => x :: xs ) @:
+    ((x : A, xs : List[A]) => x :: xs ) @:
       (parseItemA(item, List(rw), parseFn1(List(item)))
                               >>> parseList(0, parseFn1(items))
                               >>* (parseResword(".") /|/! endOfQtnErr(items)
                                                       /|/! hitReswordInsteadErr(List(rw), items)))
   }
 
-  def parseItemB[A](item: () => String, parseFn: Reader[List[Token], A]): Reader[List[Token], A] = {
+  private def parseItemB[A](item: () => String, parseFn: Reader[List[Token], A]): Reader[List[Token], A] = {
     parseFn /|/! endOfQtnErr(List(item)) /|/! hitReswordInsteadErr(List.empty, List(item))
   }
 
-  def parseItemC[A](item: () => String, br1: String, br2: String, parseFn: Reader[List[Token], A]): Reader[List[Token], A] = {
+  private def parseItemC[A](item: () => String, br1: String, br2: String, parseFn: Reader[List[Token], A]): Reader[List[Token], A] = {
     parseFn
 //      /|/! noCloseErr(br1, br2)
       /|/! earlyReswordErr(List(br2), item)
       /|/! hitReswordInsteadErr(List(br2), List(item))
   }
 
-  def parseItemD[A](item: () => String, br1: String, sep: String, br2: String, parseFn: Reader[List[Token], A]): Reader[List[Token], A] = {
+  private def parseItemD[A](item: () => String, br1: String, sep: String, br2: String, parseFn: Reader[List[Token], A]): Reader[List[Token], A] = {
     parseFn
 //      /|/! noCloseErr(br1, br2)
       /|/! earlyReswordErr(List(sep, br2), item)
       /|/! hitReswordInsteadErr(List(sep, br2), List(item))
   }
 
-  def parseReswordD(br1: String, sep: String, br2: String, x: String): Reader[List[Token], String] = {
+  private def parseReswordD(br1: String, sep: String, br2: String, x: String): Reader[List[Token], String] = {
     parseResword(x)
 //      /|/! noCloseErr(br1, br2)
       /|/! wrongReswordErr(List(sep, br2))
@@ -275,7 +276,7 @@ object Parser {
           >>* parseResword(br2))))
   }
 
-  def parseListD[A](n: Int, item: () => String, br1: String, sep: String, br2: String, parseFn: Reader[List[Token], A]) = {
+  private def parseListD[A](n: Int, item: () => String, br1: String, sep: String, br2: String, parseFn: Reader[List[Token], A]) = {
     parseResword(br1) *>> parseListD0(n, item, br1, sep, br2, parseFn)
   }
 
@@ -300,7 +301,7 @@ object Parser {
     (elems1, fnhs3)
   }
 
-  def buildRevpolish[A, B, C : Ordering](form: String, nameFn: A => String)(expr0: B, fexprs: List[((A, C, AssocHand), B)]): List[InfixElem[A, B]] = {
+  private def buildRevpolish[A, B, C : Ordering](form: String, nameFn: A => String)(expr0: B, fexprs: List[((A, C, AssocHand), B)]): List[InfixElem[A, B]] = {
     val a0 = (List(InfixArg(expr0)): List[InfixElem[A, B]], Nil: List[(A, C, AssocHand)])
     val (elems, fnhs) = fexprs.foldLeft(a0) { (acc, fnhexpr) =>
       buildRevpolishStep(form, nameFn)(acc._1, acc._2)(fnhexpr._1, fnhexpr._2)
@@ -321,7 +322,7 @@ object Parser {
       throw ReaderFail("buildInfixExpr")
   }
 
-  def helper1[A, D](f1 : A, n1 : Int, item : (String, A) => String, parseOpFn : Reader[List[Token], (A, Int, D)]): List[Token] => String = {
+  private def helper1[A, D](f1 : A, n1 : Int, item : (String, A) => String, parseOpFn : Reader[List[Token], (A, Int, D)]): List[Token] => String = {
     (@!:(
       (f2n2_ : (A, Int, D)) => {
         val (f2: A, n2: Int, _: Any) = f2n2_
@@ -345,9 +346,9 @@ object Parser {
   }
 
   // change D to AssocHand
-  def parseInfixExpr[A, B](form: String, nameFn: A => String)(parseFn: Reader[List[Token], B],
-                                                              parseOpFn: Reader[List[Token], (A, Int, AssocHand)], mkBinFn: (A, B, B) => B)
-                          (e0: B, src: List[Token]): (B, List[Token]) = {
+  private def parseInfixExpr[A, B](form: String, nameFn: A => String)(parseFn: Reader[List[Token], B],
+                                                                      parseOpFn: Reader[List[Token], (A, Int, AssocHand)], mkBinFn: (A, B, B) => B)
+                                  (e0: B, src: List[Token]): (B, List[Token]) = {
     val pF = parseInfixExpr0(form, nameFn)(parseFn, parseOpFn)
     val (fes, src1) = pF(src)
     val ys = buildRevpolish(form, nameFn)(e0, fes)
@@ -515,10 +516,167 @@ object Parser {
       /|/! hitNumeralErr(items)
   }
 
-  private def parsePreterm5 : Reader[List[Token], Preterm] = ???
-  private def parsePreterm4 : Reader[List[Token], Preterm] = ???
-  private def parsePreterm3 : Reader[List[Token], Preterm] = ???
-  private def parsePreterm2 : Reader[List[Token], Preterm] = ???
+  private def parsePreterm5 : Reader[List[Token], Preterm] = {
+    def help1 = {
+      ((x: String) => {
+        val x0 = charImplode(charExplode(x).filter(isDigit))
+        mkNatPreterm(x0.toInt)
+      }) @: parseNameWith(isNumeralToken)
+    }
+
+    def help2 = {
+      ((comb: ((Preterm, Preterm), Preterm)) => {
+        val ((ptm0, ptm1), ptm2) = comb
+        mkCondPreterm(ptm0, ptm1, ptm2)
+      })
+    }
+
+    def help2a = {
+      parseResword("if")
+        *>> parseItemA(() => "conditional condition", List("then"), parsePreterm1)
+        >>* parseResword("then")
+        >>> parseItemA(() => "conditional then branch", List("else"), parsePreterm1)
+        >>* parseResword("else")
+        >>> parseItemB(() => "conditional else branch", parsePreterm1)
+    }
+
+    def parseLetBindingItem = {
+      val item1 = () => "let-binding variable"
+      parseItemA(item1, List("="), (parseNonfixVar(true, List(item1))))
+        >>* help3a
+        >>> parseItemA(() => "let-binding RHS", List("and", "in"), parsePreterm1)
+    }
+
+    def help3a = {
+      val item2 = () => "\"=\""
+      parseReswordA("=") /|/! hitNumeralErr(List(item2))
+        /|/! hitConstErr(true, List(item2))
+    }
+
+    def help3b[A] : Reader[List[Token], (Object & Equals, Preterm)] = {
+      parseResword("let")
+        *>> parseListD0[(Preterm, Preterm)](1, () => "let-expression binding", "let", "and", "in", parseLetBindingItem)
+        >>> parseItemB[Preterm](() => "let-expression body", parsePreterm1)
+    }
+
+    def help4a(br1 : String, br2 : String) : Preterm = {
+      (ptms : List[Preterm]) => mkEnumPreterm(br1, ptms, br2)
+    }
+    def help4 = {
+      (br1 : String) => {
+        val z = getEnumBracketZero(br1)
+        val (_, br2) = getEnumZeroBrackets(z)
+        (help4a(br1, br2) @: parseListD0[Preterm](0, () => "enumeration item", br1, ",", br2, parsePreterm0))
+      }
+    }
+
+    def help5 : String => Preterm = {
+      ((br12 : String) => {
+        val z = getEnumBracketZero(br12)
+        val (br1, br2) = getEnumZeroBrackets(z)
+        mkEnumPreterm(br1, Nil, br2)
+      })
+    }
+
+    def help6 = {
+      parseResword("\\")
+      *>> parseListA(() => "lambda binding variable", ".", parseNonfixVar.curried(false))
+      >>> parseItemB(() => "lambda body", parsePreterm1)
+    }
+
+    def help7 = {
+      parseAtomWith(isBinderToken)
+        >>> parseListA (() => "binding variable", ".", parseNonfixVar.curried(false))
+        >>> parseItemB(() => "binder body", parsePreterm1)
+    }
+
+    def help8a = {
+      parseItemD( () => "subexpression", "(", ",", ")",
+        (parsePreterm0 /|/! noCloseErr("(",")")
+        /|/! earlyReswordErr(List(",") ,(()=>"pair component"))))
+    }
+
+    def help8b = {
+      (x : Preterm) =>
+        (_ => x) @:
+        parseReswordD("(", ",", ")", ")")
+        |||
+        ((((xs : List[Preterm]) => listMkPairPreterm(x :: xs)) : func[List[Preterm], Preterm]) @:
+        (parseReswordD("(", ",", ")", ",")
+          *>> parseListD0(1, () => "pair component","(", ",", ")", parsePreterm0)))
+    }
+
+    def help9 = {
+      (tok : Token) =>
+        tok match
+          case IdentTok(_, TyvarMark, _) | NumericTok(_, TyvarMark, _) => true
+          case _ => false
+
+    }
+
+    try {
+      parseAtomWith(isNonfixToken)
+      |||
+      help1
+      |||
+      (help2 @: help2a)
+      |||
+      (mkLetPreterm @: help3b)
+      |||
+      (lookahead(parseNameWith(isReswordTokenWith(isEnumOpen))) *@> help4)
+      |||
+      help5 @: parseNameWith(isReswordTokenWith(isEnumOpenclose))
+      |||
+      (listMkAbsPreterm @: help6)
+      |||
+      (((comb : ((Preterm, List[Preterm]), Preterm)) =>
+        val ((f, vs), ptm0) = comb
+        listMkBinderPreterm(f, vs, ptm0)) @: help7)
+      |||
+      ((_ => throw RuntimeException("parsePreterm5")) @: lookahead(parseAtomWith(isInfixToken)))
+      |||
+      (parseResword("(") *>> help8a *@> help8b)
+      |||
+      (((x : String) => syntaxErrorTh("Type variable " + quote(x) + " encountered outside type annotation")) @:
+        parseNameWith(help9))
+
+    } catch {
+      case _: Throwable => throw ReaderFail("ParsePreterm5")
+    }
+  }
+
+  private def parsePreterm4 : Reader[List[Token], Preterm] = {
+    def help(ptm : Preterm) = {
+      ((ptms : List[Preterm]) => listMkCombPreterm(ptm, ptms)) @: (parseList[Preterm].curried(1)(parsePreterm5 /|/! hitPrefixErr(List(() => "as curried fn arg"))))
+    }
+
+    parsePreterm5
+    |@|
+    ((ptm : Preterm) => help(ptm))
+  }
+  private def parsePreterm3 : Reader[List[Token], Preterm] = {
+    def help1 = {
+      @!:((f : Preterm) => "Missing argument ofr postfix " + (quote compose atomPretermName)(f), parseAtomWith(isPostfixToken))
+    }
+    def help2(ptm : Preterm) = {
+      ((f : Preterm) => mkCombPreterm(f, ptm)) @: parseAtomWith(isPostfixToken)
+    }
+
+
+    (parsePreterm4 /|/! help1)
+    |@|
+    ((ptm : Preterm) => help2(ptm))
+  }
+  private def parsePreterm2 : Reader[List[Token], Preterm] = {
+    def help = {
+      parseAtomWith(isPrefixToken)
+        >@> ((f : Preterm) => {
+        def item() = "argument for prefix " + quote(atomPretermName(f))
+        parseItemB(item, (parsePreterm2 /|/! hitInfixErr(List(item))))
+      } )
+    }
+    (mkCombPreterm @: help)
+  }
 
   private def parsePreterm1 : Reader[List[Token], Preterm] = {
     def help1 : Reader[List[Token], Preterm] = {
@@ -558,7 +716,6 @@ object Parser {
     val pp = parsePretype(l)
     println(pp)
 
-//    (pretypeToType compose checkPretype compose parsePretype compose lex compose charExplode)(x)
   def parseTerm(x : String) : Term = (pretermToTerm compose resolvePreterm compose detypePreterm compose parsePreterm compose lex compose charExplode)(x)
 
   private def stringTail(x : String, i : Int) : String = x.substring(i)

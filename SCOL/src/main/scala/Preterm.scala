@@ -10,7 +10,7 @@ import scala.annotation.tailrec
 
 object Preterm {
 
-  sealed trait Pretype
+  sealed trait Pretype extends Equals
 
   case class Ptyvar(name: String) extends Pretype
 
@@ -140,7 +140,7 @@ object Preterm {
     case Ptycomp(_, ptys) => 1 + ptys.map(pretypeComplexity).sum
   }
 
-  sealed trait Preterm
+  sealed trait Preterm extends Equals
 
   case class Ptmvar(name: String, pretype: Pretype) extends Preterm
 
