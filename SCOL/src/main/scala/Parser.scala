@@ -234,7 +234,7 @@ object Parser {
       /|/! hitReswordInsteadErr(List(br2), List(item))
   }
 
-  def parseItemD(item: () => String, br1: String, sep: String, br2: String, parseFn: Reader[List[Token], String]): Reader[List[Token], String] = {
+  def parseItemD[A](item: () => String, br1: String, sep: String, br2: String, parseFn: Reader[List[Token], A]): Reader[List[Token], A] = {
     parseFn
       /|/! noCloseErr(br1, br2)
       /|/! earlyReswordErr(List(sep, br2), item)
@@ -247,8 +247,8 @@ object Parser {
       /|/! wrongReswordErr(List(sep, br2))
   }
 
-  private def parseListD0(n: Int, item: () => String, br1: String, sep: String, br2: String, parseFn: Reader[List[Token], String]) = {
-    ((xs : List[String]) => {
+  private def parseListD0[A](n: Int, item: () => String, br1: String, sep: String, br2: String, parseFn: Reader[List[Token], A]) = {
+    ((xs : List[A]) => {
       if (xs.length < n)  syntaxError("Missing " + item())
       else xs
     }) @:
@@ -261,7 +261,7 @@ object Parser {
           >>* parseResword(br2))))
   }
 
-  def parseListD(n: Int, item: () => String, br1: String, sep: String, br2: String, parseFn: Reader[List[Token], String]) = {
+  def parseListD[A](n: Int, item: () => String, br1: String, sep: String, br2: String, parseFn: Reader[List[Token], A]) = {
     parseResword(br1) *>> parseListD0(n, item, br1, sep, br2, parseFn)
   }
 
@@ -356,40 +356,71 @@ object Parser {
         s"Unexpected type variable ${x.toString} instead of type constant"
       }, parseNameWith(isTyvarToken) )
 
-//  private def parsePretype2[A] : Reader[A, (String, List[Token])] = {
-//    ({ x => Ptyvar(x) } @: parseNameWith(isTyvarToken))|||
-//      ( { x => Ptycomp(x, List()) } @: parseNameWith(isNonfixTyconstToken))|||
-//      (parseResword("(") *>>
-//         parseItemD(() => "subtype", "(", ",", ")", (parsePretype0 /|/! noCloseErr("(", ")")
-//                                                                   /|/! earlyReswordErr(List(","), () => "type parameter")))
-//        *@> ((pty) =>
-//           ((_) => pty) @: parseReswordD("(", ",", ")", ")")
-//            |||
-//            ((ptys, x) => Ptycomp(x, pty::ptys)) @: (parseReswordD("(", ",", ")", ",")
-//              *>> parseListD0(1, ()=>"type parameter", "(", ",", ")", parsePretype0)
-//              >>> parseItemB(()=>"type constant", (parseNonfixTyconst /|/!
-//              (((x) => "Type constant " + x + " is not nonfix")
-//              @!: parseNameWith(isInfixTypeToken))))))
-//        )
-//    |||
-//      ((x) =>
-//        syntaxError("Term variable " + x + " encountered in type") @:
-//          (parseNameWith(({
-//            case IdentTok(_, TmvarMark, _) => true
-//            case _ => false
-//          })))
-//        )
-//  }
+  private def helper3 : Reader[List[Token], Pretype] = { x => Ptyvar(x) } @: parseNameWith(isTyvarToken)
+  private def helper4 : Reader[List[Token], Pretype] = { x => Ptycomp(x, List()) } @: parseNameWith(isNonfixTyconstToken)
+  private def helper5a: Reader[List[Token], Pretype] = {
+    parseResword("(")
+      *>>
+      parseItemD(() => "subtype", "(", ",", ")", (parsePretype0 /|/! noCloseErr("(", ")") /|/! earlyReswordErr(List(","), () => "type parameter")))
+  }
+  
+  private def helper5b : Pretype => Reader[List[Token], Pretype] = {
+      def help(pty: Pretype): ((Object & Equals, String)) => Pretype = {
+        case (ptys: List[Pretype], x: String) => Ptycomp(x, pty :: ptys)
+      }
 
+      def help2a = {
+        parseNonfixTyconst /|/!
+          @!:(((x) => "Type constant " + x + " is not nonfix"), parseNameWith(isInfixTyconstToken))
+      }
 
-//  def parsePretype1: Reader[Pretype, (String, List[Token])] = {
-//    parsePretype2 |@|
-//      ((pty) =>
-//        (xs : List[String]) => foldl((pty1 : Pretype, x : String) => Ptycomp(x, List(pty1)))(pty)(xs) @:
-//        parseList(1, parseNonfixTyconst))
-//  }
+      def help2 = {
+        parseReswordD("(", ",", ")", ",")
+          *>> parseListD0(1, () => "type parameter", "(", ",", ")", parsePretype0)
+          >>> parseItemB(() => "type constant", help2a)
+      }
 
-  def parsePretype1 : Reader[List[Token], Pretype] = ???
+      def help3(pty: Pretype): Reader[List[Token], Pretype] = {
+        ((_ => pty) @: parseReswordD("(", ",", ")", ")"))
+      }
+
+      (pty: Pretype) => {
+        help3(pty) ||| (help(pty) @: help2)
+      }
+  }
+  
+  private def helper5 : Reader[List[Token], Pretype] = {
+    helper5a *@> helper5b
+  }
+  
+  private def helper6a[A]: String => A = (x : String) => syntaxErrorTh("Term variable " + x + " encountered in type")
+  private def helper6b[A]: Reader[List[Token], String] = {parseNameWith(({
+    case IdentTok(_, TmvarMark, _) => true
+    case _ => false
+    }))
+  }
+  
+  def helper6 : Reader[List[Token], Pretype] = {
+     helper6a @: helper6b
+  }
+  
+  private def parsePretype2 : Reader[List[Token], Pretype] = {
+    helper3 ||| 
+    helper4 |||
+    helper5 |||
+    helper6
+  }
+
+  private def helper2(pty : Pretype): List[String] => Pretype = {
+    (xs: List[String]) => {
+      xs.foldLeft(pty)((pty1, x: String) => Ptycomp(x, List(pty1)))
+    }
+  }
+  def parsePretype1 : Reader[List[Token], Pretype] = {
+      parsePretype2
+      |@|
+      ((pty : Pretype) => helper2(pty) @: parseList(1, parseNonfixTyconst))
+  }
   def parsePretype0: Reader[List[Token], Pretype] = {
     (src : List[Token]) =>
       ((parsePretype1 /|/! (@!:((x) => "Missing LHS for infix type " +  x , parseNameWith(isInfixTyconstToken))))
