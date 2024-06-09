@@ -268,7 +268,7 @@ object Utils1 {
   }
 
   def stripExists(tm: Term): (Term, List[Term]) = {
-    unfoldl(doesExists, tm).swap
+    unfoldl(destExists, tm).swap
   }
 
   def isExists(tm: Term): Boolean = {
@@ -421,7 +421,7 @@ object Utils1 {
           varInst0(Nil, theta, tm)
       }
     }catch {
-      case Clash(v_) => internalError("varInst")
+      case Clash(v_) => throw internalError("varInst")
     }
   }
 
@@ -473,7 +473,7 @@ object Utils1 {
           tyvarInst0(Nil, tytheta, tm)
       }
     } catch {
-      case Clash(_) => internalError("tyvarInst")
+      case Clash(_) => throw internalError("tyvarInst")
     }
   }
 } 

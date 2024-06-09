@@ -559,16 +559,16 @@ object Parser {
         >>> parseItemB[Preterm](() => "let-expression body", parsePreterm1)
     }
 
-    def help4a(br1 : String, br2 : String) : Preterm = {
+    def help4a(br1 : String, br2 : String) : func[List[Preterm], Preterm] = {
       (ptms : List[Preterm]) => mkEnumPreterm(br1, ptms, br2)
     }
-    def help4 = {
-      (br1 : String) => {
-        val z = getEnumBracketZero(br1)
-        val (_, br2) = getEnumZeroBrackets(z)
-        (help4a(br1, br2) @: parseListD0[Preterm](0, () => "enumeration item", br1, ",", br2, parsePreterm0))
-      }
-    }
+//    def help4 = {
+//      (br1 : String) => {
+//        val z = getEnumBracketZero(br1)
+//        val (_, br2) = getEnumZeroBrackets(z)
+//        (help4a(br1, br2) @: parseListD0[Preterm](0, () => "enumeration item", br1, ",", br2, parsePreterm0))
+//      }
+//    }
 
     def help5 : String => Preterm = {
       ((br12 : String) => {
@@ -596,15 +596,15 @@ object Parser {
         /|/! earlyReswordErr(List(",") ,(()=>"pair component"))))
     }
 
-    def help8b = {
-      (x : Preterm) =>
-        (_ => x) @:
-        parseReswordD("(", ",", ")", ")")
-        |||
-        ((((xs : List[Preterm]) => listMkPairPreterm(x :: xs)) : func[List[Preterm], Preterm]) @:
-        (parseReswordD("(", ",", ")", ",")
-          *>> parseListD0(1, () => "pair component","(", ",", ")", parsePreterm0)))
-    }
+//    def help8b = {
+//      (x : Preterm) =>
+//        (_ => x) @:
+//        parseReswordD("(", ",", ")", ")")
+//        |||
+//        ((((xs : List[Preterm]) => listMkPairPreterm(x :: xs)) : func[List[Preterm], Preterm]) @:
+//        (parseReswordD("(", ",", ")", ",")
+//          *>> parseListD0(1, () => "pair component","(", ",", ")", parsePreterm0)))
+//    }
 
     def help9 = {
       (tok : Token) =>
@@ -620,10 +620,10 @@ object Parser {
       help1
       |||
       (help2 @: help2a)
-      |||
-      (mkLetPreterm @: help3b)
-      |||
-      (lookahead(parseNameWith(isReswordTokenWith(isEnumOpen))) *@> help4)
+//      |||
+//      (mkLetPreterm @: help3b)
+//      |||
+//      (lookahead(parseNameWith(isReswordTokenWith(isEnumOpen))) *@> help4)
       |||
       help5 @: parseNameWith(isReswordTokenWith(isEnumOpenclose))
       |||
@@ -634,8 +634,8 @@ object Parser {
         listMkBinderPreterm(f, vs, ptm0)) @: help7)
       |||
       ((_ => throw RuntimeException("parsePreterm5")) @: lookahead(parseAtomWith(isInfixToken)))
-      |||
-      (parseResword("(") *>> help8a *@> help8b)
+//      |||
+//      (parseResword("(") *>> help8a *@> help8b)
       |||
       (((x : String) => syntaxErrorTh("Type variable " + quote(x) + " encountered outside type annotation")) @:
         parseNameWith(help9))

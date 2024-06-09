@@ -1,4 +1,5 @@
 import main.scala.Type
+import main.scala.Type.Tycomp
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
 

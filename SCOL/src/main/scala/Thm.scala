@@ -208,7 +208,7 @@ object Thm {
     require(freeVars(c).isEmpty, "Free vars in conclusion")
     require(xs.nonEmpty, "Name list must be non-empty")
     val length_big_int = BigInteger.valueOf(xs.length)
-    val (vs, vs1): (List[Term], List[Term]) = try1(cutBigInt.curried(length_big_int), vs0, "Name list longer than existential var list"): @unchecked // Not safe :<
+    val (vs, vs1): (List[Term], List[Term]) = try1(cutBigInt.curried(length_big_int), vs0, "Name list longer than existential var list") // Not safe :<
     require(noDups(xs), "Name list not distinct")
     val tm1 = listMkExists(vs1, tm0)
     val tyvs1 = termTyvars(tm1)
@@ -281,7 +281,7 @@ object Thm {
 
     val ty0 = typeOf(v)
     val tyvs = mergesort(typeLt.curried, termTyvars(p))
-    val lengthBigInt = BigInteger.valueOf(tyvs.length)
+    val lengthBigInt = tyvs.length
     try2(primNewTyconst.curried(x), lengthBigInt)
 
     val ty = mkCompType(x, tyvs)
