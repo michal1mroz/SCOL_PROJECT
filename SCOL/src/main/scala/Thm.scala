@@ -13,12 +13,14 @@ object Thm {
   sealed trait Thm
   case class Theorem(terms: List[Term], conclusion: Term) extends Thm
 
-  def destThm(theorem: Theorem): (List[Term], Term) =
-    (theorem.terms, theorem.conclusion)
+  def destThm(theorem: Thm): (List[Term], Term) = theorem match {
+    case Theorem(terms, conclusion) => (terms, conclusion)
+    case _ => throw ScolFail("Supplied object not a Theorem")
+  }
 
-  def asms(theorem: Theorem): List[Term] = fst(destThm(theorem))
+  def asms(theorem: Thm): List[Term] = fst(destThm(theorem))
 
-  def concl(theorem: Theorem): Term = snd(destThm(theorem))
+  def concl(theorem: Thm): Term = snd(destThm(theorem))
 
   def thmEq(t1: Theorem, t2: Theorem): Boolean =
     t1.terms == t2.terms && t1.conclusion == t2.conclusion
