@@ -53,9 +53,9 @@ class TypeTest extends AnyFlatSpec {
     val t1 = Type.mkVarType("X")
     val t2 = Type.mkVarType("Y")
 
-    val compType1 = Tycomp("X", List(t1, t2))
-    val compType2 = Tycomp("Y", List(t1, t2))
-    val compType3 = Tycomp("X", List(t2, t1))
+    val compType1 = Type.Tycomp("X", List(t1, t2))
+    val compType2 = Type.Tycomp("Y", List(t1, t2))
+    val compType3 = Type.Tycomp("X", List(t2, t1))
 
     Type.typeEq(compType1, compType2) shouldBe false
     Type.typeEq(compType1, compType3) shouldBe false
@@ -63,7 +63,7 @@ class TypeTest extends AnyFlatSpec {
 
   "Different types" should "not be equall to each other" in {
     val t1 = Type.mkVarType("X")
-    val t2 = Tycomp("X", List(t1))
+    val t2 = Type.Tycomp("X", List(t1))
 
     Type.typeEq(t1, t2) shouldBe false
   }

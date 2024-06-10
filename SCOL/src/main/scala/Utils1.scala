@@ -28,7 +28,7 @@ object Utils1 {
       val (x, _) = destCompType(ty)
       x == "bool"
     } catch {
-      case _: ScolFail => false
+      case _: RuntimeException => false
     }
   }
 
@@ -37,30 +37,41 @@ object Utils1 {
   val cTy: HolType = mkVarType("c")
 
   def typeTyVars(ty: HolType): List[HolType] = destType(ty) match {
-    case Tyvar(_) => List(ty)
-    case Tycomp(_, tys) => tys.flatMap(typeTyVars)
+    case TypeVarDestructed(_) => List(ty)
+    case TypeCompDestructed(_, tys) => unions_(typeEq.curried, map(typeTyVars, tys))//tys.flatMap(typeTyVars)
   }
 
   def typeMatch0(theta: List[(HolType, HolType)], patt: HolType, ty: HolType): List[(HolType, HolType)] = {
     (destType(patt), destType(ty)) match {
-      case (Tyvar(xpatt), _) =>
+      case (TypeVarDestructed(xpatt), _) =>
         try {
-          val tyPrime = assoc(patt, theta)
-          val flag = assert1(typeEq(ty, tyPrime), "Match failure")
+          val tyPrime = Lib.try0(assoc[HolType, HolType].curried(patt), theta, Exception("assoc failed"))
+          assert1(typeEq(ty, tyPrime), "Match failure")
           theta
         }
         catch {
           case _: Exception =>
             (patt, ty) :: theta
         }
-      case (Tycomp(xpatt, patts), Tycomp(x, tys)) =>
-        val flag = assert1(x == xpatt, "Match failure")
-        zip(patts, tys).foldLeft(theta)((acc, pair) => typeMatch0(acc, pair._1, pair._2))
+      case (TypeCompDestructed(xpatt, patts), TypeCompDestructed(x, tys)) =>
+        assert1(x == xpatt, "Match failure")
+        val zipped = zip(patts, tys)
+        zipped.foldLeft(theta) { case (accTheta, (patt, ty)) => typeMatch0(accTheta, patt, ty) }
+
+
+      //val zipped = zip(patts, tys)
+        //foldl(uncurry compose typeMatch0, theta, zipped)
+      //foldl{ case (accTheta, (patt, ty)) => typeMatch0(accTheta, patt, ty) }(theta)(zipped)
+
+      //val zipped = zip(patts, tys)
+        //foldl({ case (accTheta: List[(HolType, HolType)], (patt:HolType, ty: HolType)) => typeMatch0(accTheta, patt, ty)})(theta)(zipped)
+        //foldl(uncurry andThen typeMatch0, theta, zip)
+        //zip(patts, tys).foldLeft(theta)((acc, pair) => typeMatch0(acc, pair._1, pair._2))
       case _ => throw ScolFail("typeMatch0: Match failure")
     }
   }
 
-  def typeMatch(patt: HolType, ty: HolType) = {
+  def typeMatch(patt: HolType, ty: HolType): List[(HolType, HolType)] = {
     typeMatch0(List(), patt, ty)
   }
 
@@ -70,9 +81,9 @@ object Utils1 {
 
   case class TmconstDestructed(name: String, holType: HolType) extends DestructedTerm
 
-  case class TmcombDestructed(term1: HolType, term2: HolType) extends DestructedTerm
+  case class TmcombDestructed(term1: Term, term2: Term) extends DestructedTerm
 
-  case class TmabsDestructed(term1: HolType, term2: HolType) extends DestructedTerm
+  case class TmabsDestructed(term1: Term, term2: Term) extends DestructedTerm
 
   def destTerm(tm: Term): DestructedTerm = {
     if (isVar(tm)) {
@@ -82,10 +93,10 @@ object Utils1 {
       val (name, holType) = destConst(tm)
       TmconstDestructed(name, holType)
     } else if (isComb(tm)) {
-      val (term1, term2): (HolType, HolType) = destComb(tm): @unchecked
+      val (term1, term2) = destComb(tm)
       TmcombDestructed(term1, term2)
     } else {
-      val (term1, term2): (HolType, HolType) = destAbs(tm): @unchecked
+      val (term1, term2) = destAbs(tm)
       TmabsDestructed(term1, term2)
     }
   }
@@ -282,14 +293,14 @@ object Utils1 {
 
   def termTyvars(tm: Term): List[HolType] = {
     destTerm(tm) match {
-      case Tmvar(_, ty) =>
+      case TmvarDestructed(_, ty) =>
         typeTyVars(ty)
-      case Tmconst(_, ty) =>
+      case TmconstDestructed(_, ty) =>
         typeTyVars(ty)
-      case Tmcomb(tm1, tm2) =>
+      case TmcombDestructed(tm1, tm2) =>
         // typeEq needs currying to match function signatures
         union_(typeEq.curried, termTyvars(tm1), termTyvars(tm2))
-      case Tmabs(v, tm0) =>
+      case TmabsDestructed(v, tm0) =>
         union_(typeEq.curried, termTyvars(v), termTyvars(tm0))
     }
 
@@ -298,16 +309,16 @@ object Utils1 {
 
   def alphaEq0(theta0: List[(Term, Term)], tm1: Term, tm2: Term): Boolean = {
     (destTerm(tm1), destTerm(tm2)) match {
-      case (Tmvar(_, _), Tmvar(_,_)) =>
+      case (TmvarDestructed(_, _), TmvarDestructed(_,_)) =>
         val tm1p = try assoc(tm1, theta0) catch {case _: ScolFail => tm1}
         val tm2p = try assoc(tm2, theta0) catch {case _: ScolFail => tm2}
 
         termEq(tm1p, tm2) && termEq(tm2p, tm1)
-      case (Tmconst(_, _), Tmconst(_,_)) =>
+      case (TmconstDestructed(_, _), TmconstDestructed(_,_)) =>
         termEq(tm1, tm2)
-      case (Tmcomb(tm1a, tm1b), Tmcomb(tm2a, tm2b)) =>
+      case (TmcombDestructed(tm1a, tm1b), TmcombDestructed(tm2a, tm2b)) =>
         alphaEq0(theta0, tm1a, tm2a) && alphaEq0(theta0, tm1b, tm2b)
-      case (Tmabs(v1, tm01), Tmabs(v2, tm02)) =>
+      case (TmabsDestructed(v1, tm01), TmabsDestructed(v2, tm02)) =>
         val thetaOp = (v1, v2) :: theta0
         val ty1 = varType(v1)
         val ty2 = varType(v2)
@@ -323,19 +334,19 @@ object Utils1 {
 
   def freeVars(tm: Term): List[Term] = {
     destTerm(tm) match {
-      case Tmvar(_,_) => List(tm)
-      case Tmconst(_,_) => List.empty
-      case Tmcomb(tm1, tm2) => union_(termEq.curried, freeVars(tm1), freeVars(tm2))
-      case Tmabs(v, tm0) => subtract_(termEq.curried, freeVars(tm0), List(v))
+      case TmvarDestructed(_,_) => List(tm)
+      case TmconstDestructed(_,_) => List.empty
+      case TmcombDestructed(tm1, tm2) => union_(termEq.curried, freeVars(tm1), freeVars(tm2))
+      case TmabsDestructed(v, tm0) => subtract_(termEq.curried, freeVars(tm0), List(v.asInstanceOf[Term]))
     }
   }
 
   def varFreeIn0(v: Term, tm: Term): Boolean = {
     destTerm(tm) match {
-      case Tmvar(_,_) => termEq(v, tm)
-      case Tmconst(_,_) => false
-      case Tmcomb(tm1, tm2) => varFreeIn0(v, tm1) || varFreeIn0(v, tm2)
-      case Tmabs(v0, tm0) => !termEq(v, v0) && varFreeIn0(v, tm0)
+      case TmvarDestructed(_,_) => termEq(v, tm)
+      case TmconstDestructed(_,_) => false
+      case TmcombDestructed(tm1, tm2) => varFreeIn0(v, tm1) || varFreeIn0(v, tm2)
+      case TmabsDestructed(v0, tm0) => !termEq(v, v0) && varFreeIn0(v, tm0)
     }
   }
 
@@ -377,7 +388,7 @@ object Utils1 {
   case class Clash(v: Term) extends Exception
   def varInst0(vs0: List[Term], theta: List[(Term, Term)], tm: Term): Term = {
     destTerm(tm) match{
-      case Tmvar(_,_) =>
+      case TmvarDestructed(_,_) =>
         try{
           val tm_ = assoc(tm, theta)
           val vsf_ = freeVars(tm_)
@@ -389,13 +400,13 @@ object Utils1 {
       } catch {
         case _: ScolFail => tm
       }
-      case Tmconst(_,_) => tm
-      case Tmcomb(tm1, tm2) =>
+      case TmconstDestructed(_,_) => tm
+      case TmcombDestructed(tm1, tm2) =>
         val tm1_ = varInst0(vs0, theta, tm1)
         val tm2_ = varInst0(vs0, theta, tm2)
         if (tm1_ == tm1 && tm2_ == tm2) tm
         else mkComb(tm1_, tm2_)
-      case Tmabs(v, tm0) =>
+      case TmabsDestructed(v, tm0) =>
         val theta_ :List[(Term, Term)] = fstFilter(v1 => !termEq(v1, v), theta)
         try {
           val tm0_ = varInst0(v :: vs0, theta_, tm0)
@@ -428,7 +439,7 @@ object Utils1 {
 
   def tyvarInst0(theta0: List[(Term, Term)], tytheta: List[(HolType,HolType)], tm: Term): Term = {
     destTerm(tm) match {
-      case Tmvar(x, ty) =>
+      case TmvarDestructed(x, ty) =>
         val ty_ = typeInst(tytheta, ty)
         val tm_ = if (ty_ == ty) tm else mkVar(x, ty_)
         try {
@@ -438,15 +449,15 @@ object Utils1 {
         } catch{
           case _: ScolFail => tm_
         }
-      case Tmconst(x, ty) =>
+      case TmconstDestructed(x, ty) =>
         val ty_ = typeInst(tytheta, ty)
         if (typeEq(ty_, ty)) tm else mkConst(x, ty_)
-      case Tmcomb(tm1, tm2) =>
+      case TmcombDestructed(tm1, tm2) =>
         val tm1_ = tyvarInst0(theta0, tytheta, tm1)
         val tm2_ = tyvarInst0(theta0, tytheta, tm2)
         if (tm1_ == tm1 && tm2_ == tm2) tm
         else mkComb(tm1_, tm2_)
-      case Tmabs(v, tm0) =>
+      case TmabsDestructed(v, tm0) =>
         val v_ = tyvarInst0(Nil, tytheta, v)
         try {
           val tm0_ = tyvarInst0((v, v_) :: theta0, tytheta, tm0)
