@@ -43,7 +43,7 @@ object Thm {
   }
 
   // equality congruence
-  def primMkCombRule(thm1: Theorem, thm2: Theorem): Theorem = {
+  def primMkCombRule(thm1: Thm, thm2: Thm): Thm = {
     val func = "primMkCombRule"
 
     val (lhs1, rhs1) = try1(destEq, concl(thm1), func)
@@ -61,7 +61,7 @@ object Thm {
   }
 
   // Equality congruence
-  def primMkAbsRule(v: Term, tm: Theorem): Theorem = {
+  def primMkAbsRule(v: Term, tm: Thm): Thm = {
     val func = "primMkAbsRule"
     assert1(isVar(v), "Arg 1 not a variable")
     val (lhs, rhs) = try1(destEq, concl(tm), "Arg 2 not an equality theorem")
@@ -72,13 +72,13 @@ object Thm {
   }
 
   // Assumption rule
-  def primAssumeRule(tm: Term): Theorem = {
+  def primAssumeRule(tm: Term): Thm = {
     assert1(isBoolTerm(tm), "Not a boolean term")
     Theorem(List(tm), tm)
   }
 
   // Implication introduction
-  def primDishRule(tm: Term, thm: Theorem): Theorem = {
+  def primDishRule(tm: Term, thm: Thm): Thm = {
     assert1(isBoolTerm(tm), "primDishRule, arg 1 not a boolean term")
     val hs_ = subtract_(alphaEq.curried, asms(thm), List(tm))
     val c_ = mkImp(tm, concl(thm))
@@ -86,7 +86,7 @@ object Thm {
   }
 
   // Modus ponens
-  def primMpRule(tm1: Theorem, tm2: Theorem): Theorem = {
+  def primMpRule(tm1: Thm, tm2: Thm): Thm = {
     val func = "primMpRule"
     val (lhs, rhs) = try1(destImp, concl(tm1), "Arg 1 not a implication theorem")
     assert1(alphaEq(lhs,concl(tm2)), "Implication thm LHS not alpha-equivalent to 2nd thm")
@@ -95,7 +95,7 @@ object Thm {
   }
 
   // Equality modus ponens
-  def primEqMpRule(tm1: Theorem, tm2: Theorem): Theorem = {
+  def primEqMpRule(tm1: Thm, tm2: Thm): Thm = {
     val (lhs, rhs) = try1(destEq, concl(tm1), "Arg 1 not an equality theorem")
     assert1(alphaEq(lhs, concl(tm2)), "Equality thm LHS not alpha-equivalent to 2nd thm")
     val hs_ = union_(alphaEq.curried, asms(tm1), asms(tm2))
@@ -103,7 +103,7 @@ object Thm {
   }
 
   // Variable instantiation rule
-  def primInstRule(theta: List[(Term, Term)], tm: Theorem): Theorem = {
+  def primInstRule(theta: List[(Term, Term)], tm: Thm): Thm = {
     val partVarInst = varInst.curried
     val c_ = try2(partVarInst(theta), concl(tm))
     val hs_ = setify_(alphaEq.curried, map(partVarInst(theta), asms(tm)))
@@ -111,7 +111,7 @@ object Thm {
   }
 
   // Type variable instantiation
-  def primInstTypeRule(tytheta: List[(HolType, HolType)], tm: Theorem): Theorem = {
+  def primInstTypeRule(tytheta: List[(HolType, HolType)], tm: Thm): Thm = {
     val partTyVar = tyvarInst.curried
     val c_ = try2(partTyVar(tytheta), concl(tm))
     val hs_ = setify_(alphaEq.curried, map(partTyVar(tytheta), asms(tm)))
