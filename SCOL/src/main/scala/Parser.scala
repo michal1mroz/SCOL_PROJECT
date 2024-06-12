@@ -242,6 +242,10 @@ object Parser {
     parseFn /|/! endOfQtnErr(List(item)) /|/! hitReswordInsteadErr(List.empty, List(item))
   }
 
+  private def parseItemBPreterm(item: () => String, parseFn: Reader[List[Token], Preterm]): Reader[List[Token], Preterm] = {
+    parseFn /|/! endOfQtnErr(List(item)) /|/! hitReswordInsteadErr(List.empty, List(item))
+  }
+
   private def parseItemC[A](item: () => String, br1: String, br2: String, parseFn: Reader[List[Token], A]): Reader[List[Token], A] = {
     parseFn
 //      /|/! noCloseErr(br1, br2)
@@ -375,12 +379,12 @@ object Parser {
   private def helper5a: Reader[List[Token], Pretype] = {
     parseResword("(")
       *>>
+//      parseItemD(() => "subtype", "(", ",", ")", (parsePretype0 /|/! noCloseErr("(", ")") /|/! earlyReswordErr(List(","), () => "type parameter")))
       parseItemD(() => "subtype", "(", ",", ")", parsePretype0)
 
 
     // fixme fix this one
 
-//      parseItemD(() => "subtype", "(", ",", ")", (parsePretype0 /|/! noCloseErr("(", ")") /|/! earlyReswordErr(List(","), () => "type parameter")))
   }
 
   private def helper5b : Pretype => Reader[List[Token], Pretype] = {
@@ -467,7 +471,8 @@ object Parser {
       }
     }
     def help4 = {
-      parseAtomWith(testFn) /|/! noCloseErr("(", ")") /|/! earlyReswordErr(List(":"), ()  => "type annotation subterm")
+//      parseAtomWith(testFn) /|/! noCloseErr("(", ")") /|/! earlyReswordErr(List(":"), ()  => "type annotation subterm")
+      parseAtomWith(testFn)
     }
     def help3 = {
       parseResword("(")
@@ -476,7 +481,6 @@ object Parser {
       >>> parseItemC(() => "type annotation type", "(", ")", parsePretype0)
       >>* parseResword(")")
     }
-
 
     (mkNulltypeVarPreterm @: help)
     |||
@@ -524,6 +528,12 @@ object Parser {
       }) @: parseNameWith(isNumeralToken)
     }
 
+    def transformInputBack(vptms: ((Object & Equals, Preterm))): (List[(Preterm, Preterm)], Preterm) = {
+      val (vs, ptms) = vptms
+      (vs.asInstanceOf[List[(Preterm, Preterm)]], ptms)
+    }
+
+
     def help2 = {
       ((comb: ((Preterm, Preterm), Preterm)) => {
         val ((ptm0, ptm1), ptm2) = comb
@@ -540,35 +550,40 @@ object Parser {
         >>> parseItemB(() => "conditional else branch", parsePreterm1)
     }
 
-    def parseLetBindingItem = {
+    def parseLetBindingItem : Reader[List[Token], (Preterm, Preterm)] = {
       val item1 = () => "let-binding variable"
       parseItemA(item1, List("="), (parseNonfixVar(true, List(item1))))
         >>* help3a
         >>> parseItemA(() => "let-binding RHS", List("and", "in"), parsePreterm1)
     }
 
-    def help3a = {
+    def help3a : Reader[List[Token], String] = {
       val item2 = () => "\"=\""
-      parseReswordA("=") /|/! hitNumeralErr(List(item2))
-        /|/! hitConstErr(true, List(item2))
+      parseReswordA("=") /|/! hitNumeralErr(List(item2)) /|/! hitConstErr(true, List(item2))
     }
 
-    def help3b[A] : Reader[List[Token], (Object & Equals, Preterm)] = {
+    def help3b = {
       parseResword("let")
-        *>> parseListD0[(Preterm, Preterm)](1, () => "let-expression binding", "let", "and", "in", parseLetBindingItem)
-        >>> parseItemB[Preterm](() => "let-expression body", parsePreterm1)
+        *>> parseListD0(1, () => "let-expression binding", "let", "and", "in", parseLetBindingItem)
+        >>> parseItemBPreterm(() => "let-expression body", parsePreterm1)
     }
 
     def help4a(br1 : String, br2 : String) : func[List[Preterm], Preterm] = {
       (ptms : List[Preterm]) => mkEnumPreterm(br1, ptms, br2)
     }
-//    def help4 = {
-//      (br1 : String) => {
-//        val z = getEnumBracketZero(br1)
-//        val (_, br2) = getEnumZeroBrackets(z)
-//        (help4a(br1, br2) @: parseListD0[Preterm](0, () => "enumeration item", br1, ",", br2, parsePreterm0))
-//      }
-//    }
+
+    def wrapperFunction(br1 : String, br2 : String)(obj: Object & Equals): Any = {
+      val terms = obj.asInstanceOf[List[main.scala.Preterm.Preterm]]
+      help4a(br1, br2)(terms)
+    }
+
+    def help4 = {
+      (br1 : String) => {
+        val z = getEnumBracketZero(br1)
+        val (_, br2) = getEnumZeroBrackets(z)
+        (wrapperFunction(br1, br2) @: parseListD0[Preterm](0, () => "enumeration item", br1, ",", br2, parsePreterm0))
+      }
+    }
 
     def help5 : String => Preterm = {
       ((br12 : String) => {
@@ -586,25 +601,26 @@ object Parser {
 
     def help7 = {
       parseAtomWith(isBinderToken)
-        >>> parseListA (() => "binding variable", ".", parseNonfixVar.curried(false))
+        >>> parseListA(() => "binding variable", ".", parseNonfixVar.curried(false))
         >>> parseItemB(() => "binder body", parsePreterm1)
     }
 
     def help8a = {
       parseItemD( () => "subexpression", "(", ",", ")",
-        (parsePreterm0 /|/! noCloseErr("(",")")
+//        (parsePreterm0 /|/! noCloseErr("(",")")
+          (parsePreterm0 // /|/! noCloseErr("(",")")
         /|/! earlyReswordErr(List(",") ,(()=>"pair component"))))
     }
 
-//    def help8b = {
-//      (x : Preterm) =>
-//        (_ => x) @:
-//        parseReswordD("(", ",", ")", ")")
-//        |||
-//        ((((xs : List[Preterm]) => listMkPairPreterm(x :: xs)) : func[List[Preterm], Preterm]) @:
-//        (parseReswordD("(", ",", ")", ",")
-//          *>> parseListD0(1, () => "pair component","(", ",", ")", parsePreterm0)))
-//    }
+    def help8b = {
+      (x : Preterm) =>
+        (_ => x) @:
+        parseReswordD("(", ",", ")", ")")
+        |||
+        (((xs => {listMkPairPreterm((x :: xs.asInstanceOf[List[Preterm]]))}) @:
+        (parseReswordD("(", ",", ")", ",")
+          *>> parseListD0(1, () => "pair component","(", ",", ")", parsePreterm0))))
+    }
 
     def help9 = {
       (tok : Token) =>
@@ -614,16 +630,24 @@ object Parser {
 
     }
 
+    def castBack(rd : Reader[List[Token], Any]) : Reader[List[Token], Preterm] = {
+        src =>
+          val (result : Preterm, newSrc : List[Token]) = rd(src)
+          (result.asInstanceOf[Preterm], newSrc)
+    }
+
     try {
+      castBack(
       parseAtomWith(isNonfixToken)
       |||
       help1
       |||
       (help2 @: help2a)
-//      |||
-//      (mkLetPreterm @: help3b)
-//      |||
-//      (lookahead(parseNameWith(isReswordTokenWith(isEnumOpen))) *@> help4)
+      |||
+      ((transformInputBack andThen mkLetPreterm) @: help3b)
+      |||
+      (lookahead(parseNameWith(isReswordTokenWith(isEnumOpen))) *@> help4)
+//      castBack(lookahead(parseNameWith(isReswordTokenWith(isEnumOpen))) *@> help4)
       |||
       help5 @: parseNameWith(isReswordTokenWith(isEnumOpenclose))
       |||
@@ -634,11 +658,11 @@ object Parser {
         listMkBinderPreterm(f, vs, ptm0)) @: help7)
       |||
       ((_ => throw RuntimeException("parsePreterm5")) @: lookahead(parseAtomWith(isInfixToken)))
-//      |||
-//      (parseResword("(") *>> help8a *@> help8b)
+      |||
+      (parseResword("(") *>> help8a *@> help8b)
       |||
       (((x : String) => syntaxErrorTh("Type variable " + quote(x) + " encountered outside type annotation")) @:
-        parseNameWith(help9))
+        parseNameWith(help9)))
 
     } catch {
       case _: Throwable => throw ReaderFail("ParsePreterm5")
@@ -717,6 +741,14 @@ object Parser {
     println(pp)
 
   def parseTerm(x : String) : Term = (pretermToTerm compose resolvePreterm compose detypePreterm compose parsePreterm compose lex compose charExplode)(x)
+  def parseTermDebug(x : String) = {
+    val r = charExplode(x)
+    println(r)
+    val l = lex(r)
+    println(l)
+    val p = parsePreterm(l)
+    println(p)
+  }
 
   private def stringTail(x : String, i : Int) : String = x.substring(i)
 
