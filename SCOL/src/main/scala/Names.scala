@@ -179,14 +179,19 @@ object Names {
   def hasBinderFixity(s : String) : Boolean = isBinderFixity(getFixity(s))
 
   def setFixity(s: String, fxty: Fixity): Unit = {
-    require(isNonfixFixity(fxty) || isInfixFixity(fxty))
 
     val fxty0 = getFixity(s)
-    if (fxty == fxty0) scolWarn("Unnecessary setting of same fixity of " + s + ". Fixity already set for " + fxty)
-    else if (fxty0 == Nonfix)
-      theFixities.put(s, fxty)
-      scolReport("Changed type fixity of " + s + " to " + fxty)
-    else scolWarn("Cannot change type fixity of " + s + ", fixity already set to " + fxty)
+    try {
+      assert(isNonfixFixity(fxty0) || !isNonfixFixity(fxty), ScolFail)
+      if (fxty0 == Nonfix) {
+        theFixities.put(s, fxty)
+        scolReport("Setting type fixity of " + s + " to " + fxty)
+      }
+    }catch
+      case _ : ScolFail => {
+        assert(fxty0 == fxty, ScolFail(" SetFixity: Fixities aren't the same (shouldn't really happen)"))
+        scolWarn("Benign setting to same term fixity for name " + quote(s))
+      }
   }
 
   def resetFixity(s: String): Unit = {
