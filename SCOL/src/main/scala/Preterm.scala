@@ -7,10 +7,11 @@ import main.scala.Utils1.{TypeCompDestructed, TypeVarDestructed, destType, mkCon
 import utils.ScolException.{EnumLocalFail, LocalFail, NatLocalFail, ScolFail, assertScol, scolFail, try0}
 
 import scala.annotation.tailrec
+import scala.reflect.ClassTag
 
 object Preterm {
 
-  sealed trait Pretype extends Equals
+  sealed trait Pretype extends Product with Equals with Serializable
 
   case class Ptyvar(name: String) extends Pretype
 
@@ -18,6 +19,12 @@ object Preterm {
 
   case class Ptycomp(name: String, preterms: List[Pretype]) extends Pretype
 
+  object Pretype{
+    def checkType[T: ClassTag](obj: Any): Boolean = obj match{
+      case _: T => true
+      case _ => false
+    }
+  }
 
   def destTyvarPretype(p: Pretype): String = p match {
     case Ptyvar(name) => name
@@ -140,7 +147,7 @@ object Preterm {
     case Ptycomp(_, ptys) => 1 + ptys.map(pretypeComplexity).sum
   }
 
-  sealed trait Preterm extends Equals
+  sealed trait Preterm extends Product with Serializable with Equals
 
   case class Ptmvar(name: String, pretype: Pretype) extends Preterm
 

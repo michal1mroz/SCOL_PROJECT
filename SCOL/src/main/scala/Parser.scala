@@ -244,21 +244,21 @@ object Parser {
 
   private def parseItemC[A](item: () => String, br1: String, br2: String, parseFn: Reader[List[Token], A]): Reader[List[Token], A] = {
     parseFn
-//      /|/! noCloseErr(br1, br2)
+      /|/! noCloseErr(br1, br2)
       /|/! earlyReswordErr(List(br2), item)
       /|/! hitReswordInsteadErr(List(br2), List(item))
   }
 
   private def parseItemD[A](item: () => String, br1: String, sep: String, br2: String, parseFn: Reader[List[Token], A]): Reader[List[Token], A] = {
     parseFn
-//      /|/! noCloseErr(br1, br2)
+      /|/! noCloseErr(br1, br2)
       /|/! earlyReswordErr(List(sep, br2), item)
       /|/! hitReswordInsteadErr(List(sep, br2), List(item))
   }
 
   private def parseReswordD(br1: String, sep: String, br2: String, x: String): Reader[List[Token], String] = {
     parseResword(x)
-//      /|/! noCloseErr(br1, br2)
+      /|/! noCloseErr(br1, br2)
       /|/! wrongReswordErr(List(sep, br2))
   }
 
@@ -375,17 +375,22 @@ object Parser {
   private def helper5a: Reader[List[Token], Pretype] = {
     parseResword("(")
       *>>
-      parseItemD(() => "subtype", "(", ",", ")", parsePretype0)
-
+      parseItemD(() => "subtype", "(", ",", ")", (parsePretype0 /|/! noCloseErr("(", ")") /|/! earlyReswordErr(List(","), () => "type parameter")))
+    //parseItemD(() => "subtype", "(", ",", ")", parsePretype0)
 
     // fixme fix this one
 
-//      parseItemD(() => "subtype", "(", ",", ")", (parsePretype0 /|/! noCloseErr("(", ")") /|/! earlyReswordErr(List(","), () => "type parameter")))
   }
 
   private def helper5b : Pretype => Reader[List[Token], Pretype] = {
       def help(pty: Pretype): ((Object & Equals, String)) => Pretype = {
-        case (ptys: List[Pretype], x: String) => Ptycomp(x, pty :: ptys)
+        //case (ptys: List[Pretype], x: String) => Ptycomp(x, pty :: ptys)
+        // Match any list, check for the Pretype type and cast it to List[Pretype].
+        // It should work this way
+        case (ptys: List[_], x: String) if ptys.forall(_.isInstanceOf[Pretype]) =>
+          Ptycomp(x, pty :: ptys.asInstanceOf[List[Pretype]])
+        case _ => throw ScolFail("fail")
+
       }
 
       def help2a = {
@@ -562,13 +567,15 @@ object Parser {
     def help4a(br1 : String, br2 : String) : func[List[Preterm], Preterm] = {
       (ptms : List[Preterm]) => mkEnumPreterm(br1, ptms, br2)
     }
-//    def help4 = {
-//      (br1 : String) => {
-//        val z = getEnumBracketZero(br1)
-//        val (_, br2) = getEnumZeroBrackets(z)
-//        (help4a(br1, br2) @: parseListD0[Preterm](0, () => "enumeration item", br1, ",", br2, parsePreterm0))
-//      }
-//    }
+
+   /* def help4 = {
+      (br1 : String) => {
+        val z = getEnumBracketZero(br1)
+        val (_, br2) = getEnumZeroBrackets(z)
+
+        (help4a(br1, br2) @: parseListD0[Preterm](0, () => "enumeration, item", br1, ",", br2, parsePreterm0))
+      }
+    }*/
 
     def help5 : String => Preterm = {
       ((br12 : String) => {
@@ -708,7 +715,8 @@ object Parser {
 
 
   def parseType(x : String) : HolType = (pretypeToType compose checkPretype compose parsePretype compose lex compose charExplode)(x)
-  def parseTypeDebug(x : String) =
+
+  def parseTypeDebug(x : String): Unit =
     val ce = charExplode(x)
     println(ce)
     val l = lex(ce)
