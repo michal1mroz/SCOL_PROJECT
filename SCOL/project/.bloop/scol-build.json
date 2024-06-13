@@ -2,15 +2,15 @@
     "version": "1.4.0",
     "project": {
         "name": "scol-build",
-        "directory": "/home/rio/f/inf/SCOL_PROJECT/SCOL/project",
-        "workspaceDir": "/home/rio/f/inf/SCOL_PROJECT/SCOL/project",
+        "directory": "/home/rio/courses/SCOL_PROJECT/SCOL/project",
+        "workspaceDir": "/home/rio/courses/SCOL_PROJECT/SCOL/project",
         "sources": [
-            "/home/rio/f/inf/SCOL_PROJECT/SCOL/project/src/main/scala",
-            "/home/rio/f/inf/SCOL_PROJECT/SCOL/project/src/main/scala-2.12",
-            "/home/rio/f/inf/SCOL_PROJECT/SCOL/project/src/main/scala-2",
-            "/home/rio/f/inf/SCOL_PROJECT/SCOL/project/src/main/java",
-            "/home/rio/f/inf/SCOL_PROJECT/SCOL/project/src/main/scala-sbt-1.0",
-            "/home/rio/f/inf/SCOL_PROJECT/SCOL/project/target/scala-2.12/sbt-1.0/src_managed/main"
+            "/home/rio/courses/SCOL_PROJECT/SCOL/project/src/main/scala",
+            "/home/rio/courses/SCOL_PROJECT/SCOL/project/src/main/scala-2.12",
+            "/home/rio/courses/SCOL_PROJECT/SCOL/project/src/main/scala-2",
+            "/home/rio/courses/SCOL_PROJECT/SCOL/project/src/main/java",
+            "/home/rio/courses/SCOL_PROJECT/SCOL/project/src/main/scala-sbt-1.0",
+            "/home/rio/courses/SCOL_PROJECT/SCOL/project/target/scala-2.12/sbt-1.0/src_managed/main"
         ],
         "dependencies": [
             
@@ -104,11 +104,11 @@
             "/home/rio/.cache/coursier/v1/https/repo1.maven.org/maven2/org/reactivestreams/reactive-streams/1.0.3/reactive-streams-1.0.3.jar",
             "/home/rio/.cache/coursier/v1/https/repo1.maven.org/maven2/com/typesafe/config/1.4.2/config-1.4.2.jar"
         ],
-        "out": "/home/rio/f/inf/SCOL_PROJECT/SCOL/project/.bloop/scol-build",
-        "classesDir": "/home/rio/f/inf/SCOL_PROJECT/SCOL/project/.bloop/scol-build/scala-2.12/sbt-1.0/classes",
+        "out": "/home/rio/courses/SCOL_PROJECT/SCOL/project/.bloop/scol-build",
+        "classesDir": "/home/rio/courses/SCOL_PROJECT/SCOL/project/.bloop/scol-build/scala-2.12/sbt-1.0/classes",
         "resources": [
-            "/home/rio/f/inf/SCOL_PROJECT/SCOL/project/src/main/resources",
-            "/home/rio/f/inf/SCOL_PROJECT/SCOL/project/target/scala-2.12/sbt-1.0/resource_managed/main"
+            "/home/rio/courses/SCOL_PROJECT/SCOL/project/src/main/resources",
+            "/home/rio/courses/SCOL_PROJECT/SCOL/project/target/scala-2.12/sbt-1.0/resource_managed/main"
         ],
         "scala": {
             "organization": "org.scala-lang",
@@ -122,9 +122,9 @@
             ],
             "jars": [
                 "/home/rio/.sbt/boot/scala-2.12.18/lib/scala-library.jar",
+                "/home/rio/.sbt/boot/scala-2.12.18/lib/scala-xml_2.12-2.1.0.jar",
                 "/home/rio/.sbt/boot/scala-2.12.18/lib/scala-compiler.jar",
-                "/home/rio/.sbt/boot/scala-2.12.18/lib/scala-reflect.jar",
-                "/home/rio/.sbt/boot/scala-2.12.18/lib/scala-xml_2.12-2.1.0.jar"
+                "/home/rio/.sbt/boot/scala-2.12.18/lib/scala-reflect.jar"
             ],
             "setup": {
                 "order": "mixed",
@@ -213,9 +213,9 @@
         "platform": {
             "name": "jvm",
             "config": {
-                "home": "/home/rio/.jdks/corretto-17.0.9",
+                "home": "/usr/lib/jvm/java-17-openjdk-amd64",
                 "options": [
-                    "-Duser.dir=/home/rio/f/inf/SCOL_PROJECT/SCOL/project"
+                    "-Duser.dir=/home/rio/courses/SCOL_PROJECT/SCOL/project"
                 ]
             },
             "mainClass": [
