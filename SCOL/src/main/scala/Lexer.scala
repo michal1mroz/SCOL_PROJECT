@@ -183,8 +183,6 @@ object Lexer {
           })
       }
 
-//    (((((((punctuationReader ||| alphanumReader) |||numericReader) ||| symbolicReader) ||| quoteReader) ||| defixReader) ||| ttVarmark) ||| remainingErrs)
-//    (((((((remainingErrs ||| ttVarmark) ||| defixReader) ||| quoteReader) ||| symbolicReader) ||| numericReader) ||| alphanumReader) ||| punctuationReader)
       punctuationReader |||
         alphanumReader |||
         numericReader |||

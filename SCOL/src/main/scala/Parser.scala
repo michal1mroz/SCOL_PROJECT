@@ -216,7 +216,7 @@ object Parser {
   private val leadingTypeReswords: List[String] = List("(")
 
 
-  private def leadingTermResswors: List[String] = {
+  private def leadingTermReswords: List[String] = {
     List("(", "\\", "if", "let", ":") ++ get_all_enum_info().map {case ((first, _), _) => first}
   }
 
@@ -379,12 +379,9 @@ object Parser {
   private def helper5a: Reader[List[Token], Pretype] = {
     parseResword("(")
       *>>
+    // fixme different than original
 //      parseItemD(() => "subtype", "(", ",", ")", (parsePretype0 /|/! noCloseErr("(", ")") /|/! earlyReswordErr(List(","), () => "type parameter")))
       parseItemD(() => "subtype", "(", ",", ")", parsePretype0)
-
-
-    // fixme fix this one
-
   }
 
   private def helper5b : Pretype => Reader[List[Token], Pretype] = {
@@ -462,7 +459,13 @@ object Parser {
 
   def parseAtomWith(testFn : Token => Boolean) : Reader[List[Token], Preterm] = {
     def help = {
-      parseNameWith((tok : Token) => (isVarToken(tok) && testFn(tok)))
+      parseNameWith((tok : Token) =>
+        println(tok)
+        (isVarToken(tok) && testFn(tok)))
+    }
+
+    def help1a = {
+      parseNameWith((tok : Token) => (isConstToken(tok) && testFn(tok)))
     }
     def help1 = {
       (upty : (Preterm, Pretype)) => {
@@ -471,22 +474,31 @@ object Parser {
       }
     }
     def help4 = {
-//      parseAtomWith(testFn) /|/! noCloseErr("(", ")") /|/! earlyReswordErr(List(":"), ()  => "type annotation subterm")
-      parseAtomWith(testFn)
+      parseAtomWith(testFn) /|/! noCloseErr("(", ")") /|/! earlyReswordErr(List(":"), ()  => "type annotation subterm")
+//      parseAtomWith(testFn)
+    }
+    def printHelper[A, B](r : Reader[A, B]) : Reader[A, B] = {
+      (src) =>
+        println("SOURCE is :" + src)
+        val (src_, next)  = r(src)
+        (src_, next)
     }
     def help3 = {
+//      println("in help3")
+      printHelper(
       parseResword("(")
-      *>> help4
+//      *>> help4
       >>* parseResword(":")
       >>> parseItemC(() => "type annotation type", "(", ")", parsePretype0)
       >>* parseResword(")")
+      )
     }
 
-    (mkNulltypeVarPreterm @: help)
+    printHelper((mkNulltypeVarPreterm @: help)
     |||
-    (mkNulltypeConstPreterm @: help)
-    |||
-    (help1 @: help3)
+    (mkNulltypeConstPreterm @: help1a))
+//    |||
+//    (help1 @: help3))
   }
 
   private def hitPrefixErr(items : List[() => String]): List[Token] => String = {
@@ -724,10 +736,11 @@ object Parser {
   private def parsePreterm(src: List[Token]): Preterm = {
     try {
       (/!(parseStart, "Empty type quotation")
-        *>> (parsePreterm0 /|/! hitReswordErr(leadingTypeReswords, () => "at start of type"))
+        *>> (parsePreterm0 /|/! hitReswordErr(leadingTermReswords, () => "at start of type"))
         >>* (parseEnd1 /|/! hitReswordErr(Nil, () => "after syntax-correct leading subtype")))(src)._1
     } catch
-      case e: ReaderFail => throw ScolFail("Undiagnosed type syntax error")
+      case e: ReaderFail =>
+        throw e
   }
 
 

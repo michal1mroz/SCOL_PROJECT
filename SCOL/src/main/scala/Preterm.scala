@@ -153,14 +153,18 @@ object Preterm {
   case class Ptmtyped(term: Preterm, pretype: Pretype) extends Preterm
 
 
-  def mkNulltypeVarPreterm(x: String): Preterm = Ptmvar(x, Ptygvar(0))
+  def mkNulltypeVarPreterm(x: String): Preterm = {
+    println("mkNULLVarPreterm")
+    Ptmvar(x, Ptygvar(0))
+  }
 
   def destVarPreterm(ptm: Preterm): (String, Pretype) = ptm match {
     case Ptmvar(x, pty) => (x, pty)
     case _ => throw ScolFail("destVarPreterm: ?")
   }
 
-  def mkNulltypeConstPreterm(x: String): Preterm = Ptmconst(x, Ptygvar(0))
+  def mkNulltypeConstPreterm(x: String): Preterm =
+    Ptmconst(x, Ptygvar(0))
 
   def constPretermName(ptm: Preterm): String = ptm match {
     case Ptmconst(x, _) => x
