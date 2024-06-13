@@ -394,7 +394,7 @@ object Utils1 {
           val vsf_ = freeVars(tm_)
           if (disjoint_(termEq.curried, vsf_, vs0)) tm_
           else{
-            val v_ = find[Term](v0 => mem_(termEq.curried, v0, vsf_), vs0.reverse)
+            val v_ = find((v0: Term) => mem_(termEq.curried, v0, vsf_), vs0.reverse)
             throw Clash(v_)
         }
       } catch {

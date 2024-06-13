@@ -30,7 +30,7 @@ object CoreThry {
     primNewConstDefinition("true", parseTerm("(\\(p:bool). p) = (\\p. p)"))
   }
 
-  val trueTm: Term = parseTerm("true")
+  //val trueTm: Term = parseTerm("true")
 
   setFixity("!", Binder)
   def forallDef: Thm = {
